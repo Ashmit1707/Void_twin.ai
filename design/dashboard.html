@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DigitalTwin.ai — Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav class="nav">
+    <div class="nav-brand">
+      <span class="nav-logo">⬡</span>
+      <span class="nav-name">DigitalTwin.ai</span>
+    </div>
+    <div class="nav-tabs">
+      <a href="index.html" class="nav-tab">Upload</a>
+      <a href="dashboard.html" class="nav-tab nav-tab--active">Dashboard</a>
+    </div>
+  </nav>
+
+  <!-- DASHBOARD BODY -->
+  <div class="dashboard-main">
+
+    <!-- SUBHEADER -->
+    <div class="dash-subheader">
+      <div class="dash-line-badge">
+        <span class="line-dot"></span>
+        <span>Line Alpha</span>
+        <span class="text-muted" style="font-size:0.72rem;">— Active Monitoring</span>
+      </div>
+      <div class="dash-filters">
+        <select class="filter-select" id="filterRisk" onchange="applyFilters()">
+          <option value="all">All Risk Levels</option>
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+          <option value="critical">Critical</option>
+        </select>
+        <select class="filter-select" id="filterZone" onchange="applyFilters()">
+          <option value="all">All Zones</option>
+          <option value="Body">Body Construction</option>
+          <option value="Paint">Paint</option>
+          <option value="Final">Final Assembly</option>
+        </select>
+        <select class="filter-select" id="filterTime" onchange="applyFilters()">
+          <option value="all">Full Shift</option>
+          <option value="1h">Last 1 Hour</option>
+          <option value="4h">Last 4 Hours</option>
+          <option value="8h">Last 8 Hours</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- KPI ROW -->
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <span class="kpi-label">Active Stations</span>
+        <span class="kpi-value">42</span>
+        <span class="kpi-delta kpi-delta--ok">
+          <span>⬡</span> All operational
+        </span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">High Risk Bottlenecks</span>
+        <span class="kpi-value" id="kpiHighRisk">5</span>
+        <span class="kpi-delta kpi-delta--warn">
+          <span>▲</span> <span id="kpiHighRiskDelta">+2 from last hour</span>
+        </span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Avg Utilisation</span>
+        <span class="kpi-value">78.4%</span>
+        <span class="kpi-delta kpi-delta--ok">
+          <span>▼</span> −1.1% vs baseline
+        </span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Avg Queue Time</span>
+        <span class="kpi-value">2.8m</span>
+        <span class="kpi-delta kpi-delta--warn">
+          <span>▲</span> +0.4m from last hour
+        </span>
+      </div>
+    </div>
+
+    <!-- MAIN CONTENT: timeline + insight panel -->
+    <div class="dashboard-body">
+
+      <!-- LEFT COLUMN -->
+      <div style="display:flex;flex-direction:column;gap:1.25rem;min-width:0;">
+
+        <!-- BOTTLENECK TIMELINE -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">
+              <span class="panel-title-icon">〜</span>
+              Bottleneck Risk Over Time
+            </span>
+            <div class="panel-actions">
+              <div class="risk-legend">
+                <span class="risk-pill"><span class="risk-dot risk-dot--low"></span>Low</span>
+                <span class="risk-pill"><span class="risk-dot risk-dot--medium"></span>Med</span>
+                <span class="risk-pill"><span class="risk-dot risk-dot--high"></span>High</span>
+                <span class="risk-pill"><span class="risk-dot risk-dot--critical"></span>Crit</span>
+              </div>
+            </div>
+          </div>
+          <div class="timeline-wrap">
+            <div id="timelineContainer"></div>
+          </div>
+        </div>
+
+        <!-- STATION TABLE -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">
+              <span class="panel-title-icon">▦</span>
+              Station Analysis
+            </span>
+            <div class="panel-actions">
+              <button class="export-btn">
+                <span>↓</span> Export CSV
+              </button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table id="stationTable">
+              <thead>
+                <tr>
+                  <th onclick="sortTable('name')" id="th-name">Station <span class="sort-arrow">↕</span></th>
+                  <th onclick="sortTable('zone')" id="th-zone">Zone <span class="sort-arrow">↕</span></th>
+                  <th onclick="sortTable('queue')" id="th-queue">Queue <span class="sort-arrow">↕</span></th>
+                  <th onclick="sortTable('takt')" id="th-takt">Takt <span class="sort-arrow">↕</span></th>
+                  <th onclick="sortTable('util')" id="th-util">Utilisation <span class="sort-arrow">↕</span></th>
+                  <th onclick="sortTable('risk')" id="th-risk" class="sorted">Bottleneck Risk <span class="sort-arrow">↓</span></th>
+                </tr>
+              </thead>
+              <tbody id="stationTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /LEFT COLUMN -->
+
+      <!-- INSIGHT PANEL -->
+      <div class="insight-panel" id="insightPanel">
+        <div class="insight-header">
+          <span class="insight-title">
+            <span style="color:var(--brand-cyan)">◈</span>
+            Insight Engine
+          </span>
+          <button class="insight-close" onclick="closeInsight()">✕</button>
+        </div>
+        <div class="insight-body" id="insightBody">
+          <p style="font-size:0.8rem;color:var(--text-muted);text-align:center;padding:1.5rem 0;">
+            Click any station or heatmap cell to see detailed analysis.
+          </p>
+        </div>
+      </div>
+
+    </div><!-- /dashboard-body -->
+  </div><!-- /dashboard-main -->
+
+  <!-- TOOLTIP -->
+  <div class="tooltip" id="tooltip"></div>
+
+  <!-- DATA + LOGIC -->
+  <script src="components/data.js"></script>
+  <script src="components/timeline.js"></script>
+  <script src="components/table.js"></script>
+  <script src="components/insight.js"></script>
+  <script>
+    // Boot
+    renderTimeline();
+    renderTable(STATIONS);
+  </script>
+</body>
+</html>

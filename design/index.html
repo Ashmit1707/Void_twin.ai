@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DigitalTwin.ai — Predict bottlenecks before they happen</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav class="nav">
+    <div class="nav-brand">
+      <span class="nav-logo">⬡</span>
+      <span class="nav-name">DigitalTwin.ai</span>
+    </div>
+    <div class="nav-tabs">
+      <a href="index.html" class="nav-tab nav-tab--active">Upload</a>
+      <a href="dashboard.html" class="nav-tab">Dashboard</a>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <main class="hero">
+    <div class="hero-content">
+      <p class="hero-eyebrow">Vehicle Assembly Line Intelligence</p>
+      <h1 class="hero-headline">
+        Predict bottlenecks<br />
+        <span class="hero-headline--accent">before they happen</span>
+      </h1>
+      <p class="hero-sub">
+        Upload your production floor CSV to initialise the predictive engine.<br />
+        Our models analyse historical throughput to render a live digital twin of your assembly line.
+      </p>
+
+      <!-- UPLOAD CARD -->
+      <div class="upload-card" id="uploadCard">
+        <div class="upload-drop-zone" id="dropZone">
+          <div class="upload-icon">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <polyline points="16 16 12 12 8 16"></polyline>
+              <line x1="12" y1="12" x2="12" y2="21"></line>
+              <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path>
+            </svg>
+          </div>
+          <p class="upload-label">Drag &amp; Drop Production Data</p>
+          <p class="upload-hint">Supports .csv up to 50MB</p>
+          <label class="btn btn--primary" for="fileInput">Browse Files</label>
+          <input type="file" id="fileInput" accept=".csv" hidden />
+        </div>
+
+        <div class="upload-divider">
+          <span class="upload-divider-line"></span>
+          <span class="upload-divider-text">or</span>
+          <span class="upload-divider-line"></span>
+        </div>
+
+        <button class="btn btn--ghost" id="demoBtn" onclick="startDemo()">
+          Try Demo Dataset
+        </button>
+      </div>
+
+      <!-- FEATURE PILLS -->
+      <div class="features">
+        <div class="feature">
+          <span class="feature-icon">▦</span>
+          <span class="feature-label">Data Validation</span>
+        </div>
+        <div class="feature">
+          <span class="feature-icon">◈</span>
+          <span class="feature-label">ML Prediction</span>
+        </div>
+        <div class="feature">
+          <span class="feature-icon">◎</span>
+          <span class="feature-label">Twin Visualisation</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- PROCESSING OVERLAY -->
+  <div class="overlay hidden" id="processingOverlay">
+    <div class="processing-card">
+      <p class="processing-title">Analysing Production Line</p>
+      <ul class="processing-steps" id="processingSteps">
+        <li class="step step--pending" id="step1">Reading production data</li>
+        <li class="step step--pending" id="step2">Validating sensor coverage</li>
+        <li class="step step--pending" id="step3">Engineering production features</li>
+        <li class="step step--pending" id="step4">Processing missing signals</li>
+        <li class="step step--pending" id="step5">Running bottleneck prediction</li>
+        <li class="step step--pending" id="step6">Building digital twin</li>
+      </ul>
+      <button class="btn btn--primary hidden" id="viewTwinBtn" onclick="window.location.href='dashboard.html'">
+        View Digital Twin →
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // File input trigger
+    document.getElementById('fileInput').addEventListener('change', (e) => {
+      if (e.target.files.length > 0) startProcessing();
+    });
+
+    // Drag and drop
+    const dropZone = document.getElementById('dropZone');
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drop-zone--active'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drop-zone--active'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('drop-zone--active');
+      if (e.dataTransfer.files.length > 0) startProcessing();
+    });
+
+    function startDemo() { startProcessing(); }
+
+    function startProcessing() {
+      document.getElementById('processingOverlay').classList.remove('hidden');
+      const steps = ['step1','step2','step3','step4','step5','step6'];
+      let i = 0;
+      const delays = [600, 900, 700, 1000, 1400, 800];
+      function tick() {
+        if (i < steps.length) {
+          document.getElementById(steps[i]).className = 'step step--done';
+          i++;
+          if (i < steps.length) {
+            document.getElementById(steps[i]).className = 'step step--active';
+            setTimeout(tick, delays[i]);
+          } else {
+            setTimeout(() => {
+              document.getElementById('viewTwinBtn').classList.remove('hidden');
+            }, 400);
+          }
+        }
+      }
+      document.getElementById(steps[0]).className = 'step step--active';
+      setTimeout(tick, delays[0]);
+    }
+  </script>
+</body>
+</html>

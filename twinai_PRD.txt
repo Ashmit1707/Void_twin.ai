@@ -419,43 +419,44 @@ Final-03 | 3.2m | 55s | 81% | 52
 
 
 ============================================================
-13. MAIN DIGITAL TWIN VISUALIZATION
+13. MAIN DIGITAL TWIN VISUALIZATION — MILESTONE TIMELINE
 ============================================================
 
 This is the hero feature of the website.
 
+Visualization Style: Timeline with Milestone Risk Dots
+Instead of a continuous dense heatmap, each station is represented by a horizontal timeline line with milestone circles/dots placed at timestamps where the station transitions into a new bottleneck risk threshold.
+
 X-axis:
-Time
+Time (timestamps / time progression)
 
 Y-axis:
 Assembly Stations
 
-Colour:
-Predicted bottleneck risk
+Milestone Risk Thresholds & Dot Colors:
+- 🟢 GREEN Circle  : Low Risk (0 – 25%)
+- 🟡 YELLOW Circle : Medium Risk (26 – 50%)
+- 🟠 ORANGE Circle : High Risk (51 – 75%)
+- 🔴 RED Circle    : Critical Risk (76 – 100%)
 
-Risk scale:
+Mechanism:
+1. Connecting lines link the milestone dots to show performance and risk trajectory over time.
+2. A dot is rendered whenever a station reaches or crosses a bottleneck probability milestone (Low → Medium → High → Critical).
+3. The dot color changes dynamically according to the risk level.
 
-LOW RISK                                  HIGH RISK
-
-GREEN → YELLOW → ORANGE → RED
-
-0        25        50        75       100
-
-Example:
+Example Timeline:
 
                     TIME →
+Station 01   ───●(Green)─────────────────────────────────────
+Station 02   ───●(Green)──────●(Yellow)──────●(Orange)──────●(Red)
+Station 03   ───●(Green)──────●(Yellow)──────●(Green)─────────
+Station 04   ───●(Yellow)─────●(Orange)──────●(Red)───────────
+Station 05   ───●(Green)─────────────────────────────────────
 
-Station 01   GREEN GREEN GREEN GREEN GREEN GREEN
-Station 02   GREEN GREEN YELLOW YELLOW ORANGE RED
-Station 03   GREEN GREEN GREEN YELLOW GREEN GREEN
-Station 04   YELLOW ORANGE ORANGE RED RED RED
-Station 05   GREEN GREEN GREEN GREEN GREEN GREEN
-
-The visualization should make it immediately obvious when a station's risk is increasing.
+The visualization makes it immediately obvious when and where milestone risk changes occur along the assembly line.
 
 The ideal interpretation is:
-
-"Station 04 is progressively becoming a bottleneck."
+"Station 02 hit a High risk milestone at 14:15 and reached Critical risk at 14:30."
 
 
 ============================================================
