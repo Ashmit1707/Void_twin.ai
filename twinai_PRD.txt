@@ -1,0 +1,1225 @@
+DigitalTwin.ai — Product Requirements Document (PRD)
+Hackathon Round 2 — Predictive Digital Twin for Vehicle Assembly Lines
+
+============================================================
+1. PRODUCT OVERVIEW
+============================================================
+
+DigitalTwin.ai is a web-based predictive digital twin for mixed-model vehicle assembly lines.
+
+The system accepts historical, simulated, or illustrative production data in CSV format, processes the data through a backend ML pipeline, and generates a station-level view of the assembly line showing where bottlenecks are forming and how bottleneck risk changes over time.
+
+The prototype focuses on one clear demonstration:
+
+CSV Upload
+    ↓
+Data Validation & Preprocessing
+    ↓
+Production Data Simulation / Augmentation
+    ↓
+ML Prediction Engine
+    ↓
+Bottleneck Risk Calculation
+    ↓
+Interactive Digital Twin Visualization
+    ↓
+Station-level Analysis
+
+The goal is NOT to build a production-ready factory management system. The goal is to build a convincing, functional proof-of-concept that demonstrates the core predictive mechanism and clearly addresses the Round 2 problem statement.
+
+
+============================================================
+2. PROBLEM STATEMENT
+============================================================
+
+Modern vehicle assembly plants contain a mixture of legacy and modern equipment.
+
+Some stations may provide detailed telemetry such as:
+- Cycle time
+- Torque
+- Temperature
+- Vibration
+- Machine state
+- Throughput
+
+Other stations may depend on:
+- Manual checklists
+- Operator observations
+- Periodic inspections
+- Limited production records
+
+This makes traditional predictive systems difficult to deploy across an entire assembly line.
+
+Bottlenecks are also intermittent and multi-causal. A station may appear healthy most of the time but begin accumulating queues because of increasing cycle time, reduced efficiency, upstream variation, equipment degradation, or environmental conditions.
+
+A defect or production issue introduced early in the line may only become visible much later.
+
+DigitalTwin.ai aims to provide a single predictive view of the production line that identifies stations at increasing risk of becoming bottlenecks before the bottleneck becomes severe.
+
+The prototype should explicitly demonstrate that useful predictions can still be made when sensor coverage is incomplete.
+
+
+============================================================
+3. PRIMARY PRODUCT GOAL
+============================================================
+
+The central question the prototype should answer is:
+
+"Can we use imperfect production data to identify which assembly stations are likely to become bottlenecks before the bottleneck becomes severe?"
+
+A successful demo should allow a judge to go from raw CSV data to an understandable production-line visualization within a few minutes.
+
+Success criteria:
+
+1. User can upload a CSV.
+2. System validates and processes the data.
+3. Backend generates or predicts bottleneck risk.
+4. Risk varies across stations and over time.
+5. User can visually identify high-risk stations.
+6. User can inspect the underlying production metrics.
+7. User can sort stations by different metrics.
+8. System can explain why a station has elevated risk.
+9. Missing sensor data does not cause the entire pipeline to fail.
+10. The demo clearly communicates predictive rather than merely descriptive analytics.
+
+
+============================================================
+4. TARGET USERS
+============================================================
+
+4.1 Floor Supervisor
+
+Primary MVP persona.
+
+Needs to answer:
+"Where is the problem happening right now?"
+
+Important information:
+- Current bottleneck risk
+- Queue time
+- Takt time
+- Utilisation
+- Station status
+- Risk trend
+- Contributing factors
+
+4.2 Plant Manager
+
+Needs to answer:
+"Which stations are consistently becoming bottlenecks?"
+
+Important information:
+- Historical risk
+- Average queue time
+- Utilisation trends
+- Station ranking
+- Bottleneck frequency
+- Production impact
+
+4.3 Leadership
+
+Needs to answer:
+"Is this system worth deploying across the plant?"
+
+Important information:
+- Potential throughput improvement
+- Bottleneck reduction
+- Defect reduction
+- Deployment requirements
+- ROI/business case
+
+For the Round 2 prototype, the Floor Supervisor is the primary user. Plant Manager and Leadership views can be represented through summary metrics and future roadmap items.
+
+
+============================================================
+5. MVP SCOPE
+============================================================
+
+The first version should contain two primary pages.
+
+PAGE 1:
+Data Upload / Landing Page
+
+PAGE 2:
+Digital Twin Dashboard
+
+The MVP should focus on the predictive bottleneck mechanism and visualization.
+
+Do NOT overbuild:
+- Full enterprise authentication
+- Complex ERP/MES integrations
+- Real PLC control
+- Production-grade alerting infrastructure
+- Full maintenance management
+- Multi-plant administration
+- Complex IoT hardware integrations
+
+These can be described as future roadmap items.
+
+
+============================================================
+6. PAGE 1 — DATA UPLOAD
+============================================================
+
+Purpose:
+Provide the simplest possible entry point into the prototype.
+
+Suggested UI:
+
+                    DigitalTwin.ai
+
+             Predict bottlenecks before they happen.
+
+             Upload Production Data
+
+             [ Drag & Drop CSV ]
+
+                       OR
+
+                  [ Choose CSV ]
+
+                Supported: .csv
+
+             [ Analyze Production ]
+
+Also provide:
+
+             [ Try Demo Dataset ]
+
+The "Try Demo Dataset" option is important because hackathon judges may not have a CSV ready.
+
+After upload, the system should:
+1. Validate the file.
+2. Detect the available columns.
+3. Detect missing sensor coverage.
+4. Start preprocessing.
+5. Run the ML pipeline.
+6. Redirect to the dashboard.
+
+
+============================================================
+7. CSV INPUT FORMAT
+============================================================
+
+The prototype should support a flexible but documented schema.
+
+Recommended example:
+
+timestamp
+station_id
+station_name
+cycle_time
+takt_time
+queue_time
+utilisation
+temperature
+vibration
+torque
+defect
+
+Not every station needs every variable.
+
+Example:
+
+Station 01:
+cycle_time ✓
+queue_time ✓
+temperature ✓
+vibration ✓
+torque ✓
+
+Station 27:
+cycle_time ✓
+queue_time ✓
+utilisation ✓
+temperature ✗
+vibration ✗
+torque ✗
+
+This is intentional and demonstrates the real-world problem of uneven instrumentation.
+
+Required fields for the minimum MVP should be clearly defined by the implementation team. At minimum, station identity and time should be available, while useful production metrics can be optional depending on the model design.
+
+
+============================================================
+8. DATA PROCESSING PIPELINE
+============================================================
+
+CSV
+  ↓
+Schema Validation
+  ↓
+Missing Data / Sensor Coverage Analysis
+  ↓
+Feature Engineering
+  ↓
+Production Data Simulation / Augmentation
+  ↓
+Anomaly Detection / Prediction
+  ↓
+Bottleneck Risk Score
+  ↓
+Temporal Smoothing / Trend Analysis
+  ↓
+Dashboard
+
+The system should preserve enough intermediate information to explain predictions.
+
+
+============================================================
+9. ML / PREDICTION MECHANISM
+============================================================
+
+The ML component must produce a meaningful Bottleneck Risk Score for every station and timestamp.
+
+Risk scale:
+
+0   = Very Low Risk
+100 = Very High Risk
+
+Example:
+
+Station       Risk
+Body-04        18
+Body-07        34
+Paint-12       61
+Final-03       87
+
+The frontend converts this score into the green-to-red visualization.
+
+The model should aim to detect increasing risk rather than only identify already-existing bottlenecks.
+
+Example:
+
+Current Risk:   62
+Predicted Risk: 84
+Trend:          ↑ +22
+
+
+============================================================
+10. FEATURE ENGINEERING
+============================================================
+
+Potential production features:
+
+- Cycle time
+- Takt time
+- Queue time
+- Throughput
+- Utilisation
+
+Potential equipment features:
+
+- Temperature
+- Vibration
+- Torque
+- Machine state
+
+Potential temporal features:
+
+- Rolling average cycle time
+- Cycle-time deviation
+- Queue growth
+- Utilisation trend
+- Previous station performance
+- Historical station baseline
+
+Derived features:
+
+Takt deviation:
+cycle_time / takt_time
+
+Queue growth:
+current_queue - previous_queue
+
+Cycle-time instability:
+rolling standard deviation of cycle_time
+
+Other derived features may be added if they improve prediction quality and remain explainable.
+
+
+============================================================
+11. HANDLING MISSING SENSORS
+============================================================
+
+The system must NOT assume every station has every sensor.
+
+Possible strategies:
+
+1. Statistical Imputation
+Use historical station data where appropriate.
+
+2. Derived Signals
+Estimate station health from available production variables such as:
+- Queue time
+- Cycle time
+- Utilisation
+- Throughput
+
+3. Feature Availability Awareness
+The model should know which signals are actually available.
+
+4. Prediction Confidence
+Every prediction can optionally include a confidence score.
+
+Example:
+
+Bottleneck Risk: 82
+Prediction Confidence: 74%
+
+Suggested product message:
+
+"The digital twin does not require perfect instrumentation. It adapts its prediction confidence based on the quality and availability of station data."
+
+
+============================================================
+12. PAGE 2 — DIGITAL TWIN DASHBOARD
+============================================================
+
+After processing:
+
+/dashboard
+
+The dashboard is the main showcase of the project.
+
+Suggested layout:
+
+------------------------------------------------------------
+DigitalTwin.ai                    Production Line: A01
+------------------------------------------------------------
+
+Production Overview
+
+Stations       High Risk       Avg Utilisation      Avg Queue
+42             5               78.4%                2.8m
+
+------------------------------------------------------------
+
+BOTTLENECK RISK OVER TIME
+
+Time ----------------------------------------------------->
+
+Station 01     low-risk → stable
+Station 02     low → medium → high
+Station 03     stable
+Station 04     medium → high → critical
+Station 05     stable
+
+------------------------------------------------------------
+
+Station Analysis
+
+Station | Queue | Takt | Utilisation | Bottleneck Risk
+
+Paint-12 | 8.2m | 52s | 94% | 91
+Body-07  | 5.1m | 48s | 89% | 76
+Final-03 | 3.2m | 55s | 81% | 52
+
+------------------------------------------------------------
+
+
+============================================================
+13. MAIN DIGITAL TWIN VISUALIZATION
+============================================================
+
+This is the hero feature of the website.
+
+X-axis:
+Time
+
+Y-axis:
+Assembly Stations
+
+Colour:
+Predicted bottleneck risk
+
+Risk scale:
+
+LOW RISK                                  HIGH RISK
+
+GREEN → YELLOW → ORANGE → RED
+
+0        25        50        75       100
+
+Example:
+
+                    TIME →
+
+Station 01   GREEN GREEN GREEN GREEN GREEN GREEN
+Station 02   GREEN GREEN YELLOW YELLOW ORANGE RED
+Station 03   GREEN GREEN GREEN YELLOW GREEN GREEN
+Station 04   YELLOW ORANGE ORANGE RED RED RED
+Station 05   GREEN GREEN GREEN GREEN GREEN GREEN
+
+The visualization should make it immediately obvious when a station's risk is increasing.
+
+The ideal interpretation is:
+
+"Station 04 is progressively becoming a bottleneck."
+
+
+============================================================
+14. HOVER INTERACTION
+============================================================
+
+When the user hovers over a station/time cell, display a tooltip.
+
+Example:
+
+Station: Paint-12
+Time: 14:35
+
+Queue Time       8.2 min
+Takt Time        52 sec
+Utilisation      94%
+Bottleneck Risk  91%
+
+If available:
+
+Cycle Time       58 sec
+Temperature      71°C
+Vibration        4.2 mm/s
+
+The visualization should remain clean while the tooltip provides deeper information.
+
+
+============================================================
+15. STATION TABLE
+============================================================
+
+Below the visualization, display every station.
+
+Columns:
+
+- Station
+- Queue Time
+- Takt Time
+- Utilisation
+- Bottleneck Risk
+
+Example:
+
+Station   Queue Time   Takt Time   Utilisation   Risk
+Paint-12  8.2 min      52 sec      94%            91
+Body-07   5.1 min      48 sec      89%            76
+Final-03  3.2 min      55 sec      81%            52
+
+Every numerical column must support ascending and descending sorting.
+
+Examples:
+
+Queue Time       ↑ ↓
+Takt Time        ↑ ↓
+Utilisation      ↑ ↓
+Bottleneck Risk  ↑ ↓
+
+
+============================================================
+16. FILTERING
+============================================================
+
+Recommended MVP filters:
+
+Risk:
+- All
+- Low
+- Medium
+- High
+- Critical
+
+Station Area:
+- All
+- Body Construction
+- Paint
+- Final Assembly
+
+Time Range:
+- Last 1 hour
+- Last 4 hours
+- Last 8 hours
+- Full Shift
+
+Filtering should update both the visualization and table where practical.
+
+
+============================================================
+17. STATION DETAIL / EXPLAINABILITY
+============================================================
+
+When a user clicks a high-risk station, show a detail panel.
+
+Example:
+
+Station: Paint-12
+
+Bottleneck Risk
+91 / 100
+
+Trend
+↑ Increasing
+
+Contributing Factors
+
+Queue Growth           87%
+Cycle Time Deviation   79%
+Utilisation            93%
+Temperature Anomaly    61%
+
+Prediction Confidence
+78%
+
+The exact visual representation can be a bar chart, ranked list, or similar simple component.
+
+This feature is strongly recommended because it makes the system explainable and more credible to judges.
+
+
+============================================================
+18. PRODUCTION DATA SIMULATION
+============================================================
+
+Because real plant data may not be available, the prototype should include a realistic simulator.
+
+The simulation should model:
+
+18.1 Normal Station
+
+Cycle Time ≈ Takt Time
+Queue ≈ Low
+Utilisation ≈ Stable
+Risk ≈ Low
+
+18.2 Degrading Station
+
+Cycle Time ↑
+Queue Time ↑
+Utilisation ↑
+Risk ↑
+
+18.3 Sudden Equipment Issue
+
+Temperature ↑
+Vibration ↑
+Cycle Time ↑
+Queue ↑
+Risk ↑
+
+18.4 Upstream Issue
+
+Upstream station risk ↑
+        ↓
+Downstream queue ↑
+        ↓
+Downstream bottleneck risk ↑
+
+This demonstrates the multi-station and multi-causal nature of production problems.
+
+
+============================================================
+19. EXAMPLE PREDICTIVE SCENARIO
+============================================================
+
+Example station:
+
+Station 12
+
+Normal:
+Takt = 50 sec
+Cycle = 48 sec
+Queue = 1.2 min
+Utilisation = 82%
+
+Over time:
+
+10:00 → Cycle 48s → Risk 12
+10:30 → Cycle 50s → Risk 18
+11:00 → Cycle 53s → Risk 31
+11:30 → Cycle 56s → Risk 48
+12:00 → Cycle 59s → Risk 67
+12:30 → Cycle 63s → Risk 84
+
+Visualization:
+
+GREEN → GREEN → YELLOW → YELLOW → ORANGE → RED
+
+This demonstrates the system identifying a bottleneck before it reaches its worst state.
+
+
+============================================================
+20. LOADING EXPERIENCE
+============================================================
+
+After upload, do not show a generic spinner.
+
+Show pipeline progress:
+
+Analyzing Production Line
+
+✓ Reading production data
+✓ Validating sensor coverage
+✓ Engineering production features
+✓ Processing missing signals
+● Running bottleneck prediction
+○ Building digital twin
+
+Then:
+
+[ View Digital Twin ]
+
+The exact implementation can use simulated progress if the backend computation is fast.
+
+
+============================================================
+21. ERROR HANDLING
+============================================================
+
+Invalid CSV:
+
+"We couldn't process this file.
+
+Missing required column:
+station_id"
+
+Empty file:
+
+"The uploaded CSV contains no production records."
+
+Unsupported format:
+
+"Please upload a .csv file."
+
+Missing sensor data:
+
+"Partial sensor coverage detected.
+
+12 of 42 stations contain incomplete telemetry.
+The prediction model will use available production signals."
+
+Missing optional fields should not cause the entire analysis to fail when the model can operate with the remaining features.
+
+
+============================================================
+22. BACKEND ARCHITECTURE
+============================================================
+
+Recommended architecture:
+
+Frontend:
+Next.js / React
+        |
+        | REST API
+        ↓
+Python Backend
+FastAPI
+        |
+        +--------------------+
+        |                    |
+        ↓                    ↓
+Data Processing        ML Prediction
+Pipeline               Model
+        |                    |
+        +---------+----------+
+                  ↓
+          Prediction Results
+                  ↓
+              Frontend
+
+
+============================================================
+23. RECOMMENDED TECH STACK
+============================================================
+
+Frontend:
+- Next.js
+- TypeScript
+- Tailwind CSS
+
+Visualization:
+- Apache ECharts OR Plotly
+
+Backend:
+- Python
+- FastAPI
+
+Data/ML:
+- pandas
+- NumPy
+- scikit-learn
+
+Storage:
+- PostgreSQL if persistence is required
+
+For the hackathon MVP, a database is optional.
+
+Initial flow can be:
+
+CSV → FastAPI → ML pipeline → JSON results → Frontend
+
+Temporary/in-memory storage is acceptable for the prototype if persistence is not required.
+
+
+============================================================
+24. ML IMPLEMENTATION DIRECTION
+============================================================
+
+Do not overcomplicate the model.
+
+A practical MVP can combine:
+
+- Isolation Forest for anomaly detection
+- Statistical Process Control for deviations from normal behaviour
+- Rolling-window trend analysis
+- Interpretable risk scoring
+
+Example conceptual risk:
+
+Risk =
+    0.30 × cycle-time deviation
+  + 0.25 × queue growth
+  + 0.20 × utilisation
+  + 0.15 × process anomaly
+  + 0.10 × upstream risk
+
+IMPORTANT:
+These weights are illustrative starting points, not scientifically validated constants.
+
+The implementation team should calibrate or learn the weights using the available simulated/illustrative data.
+
+The goal is not to claim industrial-grade predictive accuracy.
+
+The goal is to demonstrate a coherent predictive mechanism that can later be validated against real production outcomes.
+
+
+============================================================
+25. PREDICTIVE VS DESCRIPTIVE ANALYTICS
+============================================================
+
+The project should emphasize prediction.
+
+Weak:
+"Station 12 is currently a bottleneck."
+
+Stronger:
+"Station 12 shows a rapidly increasing probability of becoming a bottleneck in the next prediction window."
+
+Dashboard example:
+
+Current Risk       62
+Predicted Risk     84
+Trend              ↑ +22
+
+The exact prediction horizon should be defined by the implementation based on the generated dataset.
+
+
+============================================================
+26. API DESIGN
+============================================================
+
+Upload CSV:
+
+POST /api/upload
+
+Response:
+
+{
+  "job_id": "abc123",
+  "status": "processing"
+}
+
+
+Processing status:
+
+GET /api/jobs/{job_id}
+
+
+Prediction results:
+
+GET /api/predictions/{job_id}
+
+Example:
+
+{
+  "stations": [
+    {
+      "station_id": "ST-12",
+      "station_name": "Paint-12",
+      "timestamp": "2026-08-25T12:30:00",
+      "queue_time": 8.2,
+      "takt_time": 52,
+      "utilisation": 94,
+      "bottleneck_risk": 91
+    }
+  ]
+}
+
+
+The exact API structure can be modified during implementation.
+
+
+============================================================
+27. BUSINESS VALUE
+============================================================
+
+Traditional workflow:
+
+Issue occurs
+    ↓
+Operator notices
+    ↓
+Production slows
+    ↓
+Maintenance investigates
+    ↓
+Root cause identified
+
+DigitalTwin.ai:
+
+Production data
+    ↓
+ML detects abnormal behaviour
+    ↓
+Risk increases
+    ↓
+Supervisor receives early warning
+    ↓
+Intervention
+    ↓
+Potential bottleneck prevented
+
+Potential business outcomes:
+
+- Reduced unplanned downtime
+- Higher throughput
+- Reduced queue accumulation
+- Earlier maintenance intervention
+- Reduced production losses
+- Better root-cause analysis
+- Improved equipment utilisation
+
+Do not claim specific percentage improvements unless they are actually measured and validated.
+
+
+============================================================
+28. LEGACY SYSTEM / SAFETY APPROACH
+============================================================
+
+The prototype should explicitly avoid modifying live production control logic.
+
+Recommended deployment concept:
+
+Existing PLC / SCADA / MES / sensors
+              ↓
+        Read-only data
+              ↓
+       DigitalTwin.ai
+              ↓
+       Prediction / Alerts
+
+The system should be presented as a monitoring and decision-support layer rather than a system that directly controls the assembly line.
+
+This reduces operational risk and addresses the challenge's requirement to work around infrequent maintenance windows.
+
+
+============================================================
+29. PHASED ROADMAP
+============================================================
+
+PHASE 1 — HACKATHON PROTOTYPE
+
+CSV Upload
+    ↓
+Data Simulation
+    ↓
+Feature Engineering
+    ↓
+ML Prediction
+    ↓
+Digital Twin
+    ↓
+Station Analytics
+
+
+PHASE 2 — PILOT PLANT
+
+Integrate with:
+- PLC data
+- SCADA
+- MES
+- IoT sensors
+- Manual inspection data
+
+Run read-only alongside existing production systems.
+
+
+PHASE 3 — PLANT DEPLOYMENT
+
+Add:
+- Real-time streaming
+- Alerts
+- Maintenance integration
+- Historical analytics
+- Model retraining
+- Model monitoring
+
+
+PHASE 4 — MULTI-PLANT DIGITAL TWIN
+
+Support:
+- Different layouts
+- Different equipment
+- Different equipment ages
+- Different sensor coverage
+- Different takt times
+- Configurable station models
+
+
+============================================================
+30. KEY RISKS AND MITIGATIONS
+============================================================
+
+Risk:
+False alarms
+
+Mitigation:
+Confidence scores, historical validation, and model calibration.
+
+
+Risk:
+Missing sensor data
+
+Mitigation:
+Feature fallback, imputation, and sensor-availability awareness.
+
+
+Risk:
+Legacy equipment
+
+Mitigation:
+Read-only integration and non-invasive data collection.
+
+
+Risk:
+Production disruption
+
+Mitigation:
+No modification of PLC control logic.
+
+
+Risk:
+Model drift
+
+Mitigation:
+Periodic retraining and monitoring.
+
+
+Risk:
+Poor operator trust
+
+Mitigation:
+Explainable risk factors and confidence scores.
+
+
+Risk:
+Different plant layouts
+
+Mitigation:
+Configurable station and line models.
+
+
+Risk:
+Insufficient real-world data
+
+Mitigation:
+Simulation for the prototype followed by staged validation against real outcomes.
+
+
+============================================================
+31. DEMO USER JOURNEY
+============================================================
+
+The ideal hackathon demo should follow this sequence:
+
+STEP 1:
+Open DigitalTwin.ai.
+
+STEP 2:
+Landing page says:
+
+"Predict bottlenecks before they happen."
+
+STEP 3:
+Upload a CSV or click "Try Demo Dataset."
+
+STEP 4:
+Show processing pipeline:
+
+✓ Reading production data
+✓ Validating sensor coverage
+✓ Engineering features
+✓ Processing missing signals
+✓ Running bottleneck prediction
+✓ Building digital twin
+
+STEP 5:
+Open dashboard.
+
+STEP 6:
+Show the line-wide heatmap/timeline.
+
+STEP 7:
+Point out a station transitioning:
+
+GREEN → YELLOW → ORANGE → RED
+
+STEP 8:
+Hover over the station.
+
+Show:
+
+Queue Time
+Takt Time
+Utilisation
+Bottleneck Risk
+
+STEP 9:
+Click the station.
+
+Show:
+
+Risk: 91/100
+Trend: Increasing
+Contributing factors
+Prediction confidence
+
+STEP 10:
+Scroll to the station table.
+
+Sort by:
+
+Bottleneck Risk ↓
+
+STEP 11:
+Explain:
+
+"The system isn't just showing where the bottleneck is. It is showing where the bottleneck is forming and why."
+
+
+============================================================
+32. CORE PRODUCT PRINCIPLE
+============================================================
+
+The prototype should follow one central principle:
+
+MAKE THE PREDICTION UNDERSTANDABLE.
+
+A judge should be able to answer three questions immediately:
+
+1. WHERE is the problem?
+   → Station-level risk visualization.
+
+2. WHEN is it becoming a problem?
+   → Risk changing over time.
+
+3. WHY does the model think it is a problem?
+   → Queue, takt, utilisation, anomalies, upstream effects, and confidence.
+
+
+============================================================
+33. OUT OF SCOPE FOR MVP
+============================================================
+
+Do not spend significant hackathon time on:
+
+- User authentication
+- Enterprise RBAC
+- Complex admin dashboards
+- Real PLC control
+- Hardware installation
+- Full MES integration
+- Full ERP integration
+- Mobile applications
+- Multi-plant administration
+- Production-grade model governance
+- Automated maintenance work orders
+- Complex digital physics simulation
+
+These can be shown in the roadmap rather than implemented.
+
+
+============================================================
+34. IMPLEMENTATION PRIORITY
+============================================================
+
+Priority 0 — MUST WORK
+
+1. CSV upload
+2. CSV validation
+3. Backend processing
+4. ML/risk mechanism
+5. Station/time risk data
+6. Interactive visualization
+7. Hover tooltip
+8. Station table
+9. Sorting
+10. Demo dataset
+
+
+Priority 1 — STRONGLY RECOMMENDED
+
+1. Station detail panel
+2. Risk trend
+3. Explainable contributing factors
+4. Missing sensor handling
+5. Prediction confidence
+6. Risk filtering
+7. Loading pipeline
+
+
+Priority 2 — NICE TO HAVE
+
+1. Time-range filtering
+2. Station-area filtering
+3. Historical comparison
+4. Throughput impact estimate
+5. Basic ROI estimate
+6. Animated risk progression
+
+
+============================================================
+35. DESIGN DIRECTION
+============================================================
+
+The product should look like a modern industrial intelligence platform rather than a generic analytics dashboard.
+
+Desired visual characteristics:
+
+- Professional
+- Technical
+- Clean
+- Data-dense but understandable
+- Dark or dark-neutral industrial aesthetic is acceptable
+- Strong contrast
+- Clear green → yellow → orange → red risk language
+- Minimal unnecessary decoration
+- Visualization should be the visual centerpiece
+
+Avoid:
+- Excessive gradients unrelated to risk
+- Generic SaaS illustrations
+- Too many cards
+- Fake 3D factory graphics that do not communicate data
+- Overly complicated dashboards
+
+
+============================================================
+36. FINAL HACKATHON POSITIONING
+============================================================
+
+DigitalTwin.ai is a predictive decision-support layer for vehicle assembly lines that works even when production data is incomplete.
+
+Instead of waiting for a bottleneck to become visible, DigitalTwin.ai continuously evaluates station behaviour and identifies where bottleneck risk is increasing.
+
+The core differentiator is:
+
+"Predict the bottleneck before the line feels it."
+
+The prototype demonstrates this using realistic/simulated production data while explicitly addressing uneven sensor coverage, temporal behaviour, explainability, and safe read-only integration with existing industrial systems.
