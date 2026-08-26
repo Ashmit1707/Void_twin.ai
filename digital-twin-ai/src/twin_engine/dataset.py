@@ -12,17 +12,11 @@ class PlantWideDataset(Dataset):
         self.window_size = window_size
         df = pd.read_csv(csv_file)
         
-        # 1. Handle Missing Data (Imputation + Sensor Availability Mask)
-        df['sensor_available'] = (~df['vibration_hz'].isna()).astype(float)
-        
-        # Compute plant defaults for imputation
-        numeric_means = df[NUMERIC_COLS].mean()
-        df[NUMERIC_COLS] = df[NUMERIC_COLS].fillna(numeric_means)
-        
         # Determine or load standardization parameters
         params_file = Path(scaler_params_path) if scaler_params_path else (Path(__file__).parent / "scaler_params.json")
         
         if is_training or not params_file.exists():
+            numeric_means = df[NUMERIC_COLS].mean()
             means = df[NUMERIC_COLS].mean().to_dict()
             stds = df[NUMERIC_COLS].std().replace(0, 1.0).fillna(1.0).to_dict()
             self.scaler_params = {
@@ -38,6 +32,15 @@ class PlantWideDataset(Dataset):
         else:
             with open(params_file, "r") as f:
                 self.scaler_params = json.load(f)
+                
+        # 1. Handle Missing Data (Imputation + Sensor Availability Mask)
+        df['sensor_available'] = (~df['vibration_hz'].isna()).astype(float)
+        
+        if self.scaler_params and "impute_means" in self.scaler_params:
+            for col in NUMERIC_COLS:
+                if col in self.scaler_params["impute_means"]:
+                    df[col] = df[col].fillna(self.scaler_params["impute_means"][col])
+        df[NUMERIC_COLS] = df[NUMERIC_COLS].fillna(df[NUMERIC_COLS].mean())
                 
         # Normalize numeric columns to prevent LSTM gradient saturation
         for col in NUMERIC_COLS:

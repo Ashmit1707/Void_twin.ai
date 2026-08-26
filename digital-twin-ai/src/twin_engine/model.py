@@ -3,7 +3,7 @@ import sys
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader
 
 # Ensure project root is in sys.path when running directly
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -59,23 +59,32 @@ class DigitalTwinMTL(nn.Module):
 # ==========================================
 # 2. Training and Evaluation Pipeline
 # ==========================================
-def train_model():
+def train_model(train_csv_path: str = None, test_csv_path: str = None):
     PROJECT_ROOT = Path(__file__).resolve().parents[2]
-    csv_path = PROJECT_ROOT / "data" / "raw" / "plant_twin_data.csv"
     
-    if not csv_path.exists():
-        csv_path = Path(__file__).parent / "synthetic_factory_data.csv"
+    # 1. Resolve Data Filepaths
+    if train_csv_path is None:
+        train_path = PROJECT_ROOT / "data" / "raw" / "plant_twin_data.csv"
+        if not train_path.exists():
+            train_path = Path(__file__).parent / "synthetic_factory_data.csv"
+    else:
+        train_path = Path(train_csv_path)
+
+    if test_csv_path is None:
+        test_path = PROJECT_ROOT / "data" / "raw" / "test.csv"
+    else:
+        test_path = Path(test_csv_path)
         
-    dataset = PlantWideDataset(str(csv_path), window_size=10, is_training=True)
+    print(f"--- Loading Training Data from: {train_path} ---")
+    train_dataset = PlantWideDataset(str(train_path), window_size=10, is_training=True)
     
-    train_size = int(0.8 * len(dataset))
-    val_size = len(dataset) - train_size
-    train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+    print(f"--- Loading Testing Data from: {test_path} ---")
+    test_dataset = PlantWideDataset(str(test_path), window_size=10, is_training=False)
     
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
     
-    sample_x, _, _ = dataset[0]
+    sample_x, _, _ = train_dataset[0]
     input_dim = sample_x.shape[1]
     
     model = DigitalTwinMTL(input_dim=input_dim, hidden_dim=64, num_layers=2, num_classes=41)
@@ -84,7 +93,7 @@ def train_model():
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5)
     
     epochs = 35
-    print(f"--- Training Dual-Head MTL Model on {len(train_dataset)} Samples ({epochs} Epochs) ---")
+    print(f"\n--- Training Dual-Head MTL Model ({len(train_dataset)} Train Samples, {len(test_dataset)} Test Samples, {epochs} Epochs) ---")
     
     for epoch in range(1, epochs + 1):
         model.train()
@@ -105,19 +114,19 @@ def train_model():
             
         avg_train_loss = total_loss / len(train_loader)
         
-        # Validation
+        # Test Evaluation during training
         model.eval()
-        val_loss = 0.0
+        test_loss = 0.0
         with torch.no_grad():
-            for vx, vy_bn, vy_def in val_loader:
-                vbn, vdef = model(vx)
-                vloss = criterion(vbn, vy_bn) + criterion(vdef, vy_def)
-                val_loss += vloss.item()
-        avg_val_loss = val_loss / len(val_loader)
-        scheduler.step(avg_val_loss)
+            for tx, ty_bn, ty_def in test_loader:
+                tbn, tdef = model(tx)
+                tloss = criterion(tbn, ty_bn) + criterion(tdef, ty_def)
+                test_loss += tloss.item()
+        avg_test_loss = test_loss / len(test_loader)
+        scheduler.step(avg_test_loss)
         
         if epoch % 5 == 0 or epoch == 1:
-            print(f"Epoch [{epoch:02d}/{epochs:02d}] | Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f}")
+            print(f"Epoch [{epoch:02d}/{epochs:02d}] | Train Loss: {avg_train_loss:.4f} | Test Loss: {avg_test_loss:.4f}")
             
     # Save the trained model weights
     model_path = Path(__file__).parent / "twin_mtl_model.pth"
@@ -127,26 +136,71 @@ def train_model():
     torch.save(model.state_dict(), root_model_path)
     print(f"\nModel saved successfully to '{model_path}' and '{root_model_path}'")
     
-    simulate_live_inference(model, dataset)
+    # 3. Comprehensive Evaluation on test.csv
+    evaluate_on_test_data(model, test_dataset)
+    simulate_live_inference(model, test_dataset)
 
 
 # ==========================================
-# 3. Live Floor Inference Test
+# 3. Quantitative Test Evaluation (test.csv)
 # ==========================================
-def simulate_live_inference(model: nn.Module, dataset: PlantWideDataset):
+def evaluate_on_test_data(model: nn.Module, test_dataset: PlantWideDataset):
     model.eval()
-    print("\n--- Live Floor Prediction & False Alarm Suppression Test ---")
+    test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
+    
+    total_samples = 0
+    correct_bn, correct_def = 0, 0
+    conf_sum_bn, conf_sum_def = 0.0, 0.0
+    
+    with torch.no_grad():
+        for bx, by_bn, by_def in test_loader:
+            bn_logits, def_logits = model(bx)
+            
+            bn_probs = torch.softmax(bn_logits, dim=1)
+            def_probs = torch.softmax(def_logits, dim=1)
+            
+            bn_conf, pred_bn = torch.max(bn_probs, dim=1)
+            def_conf, pred_def = torch.max(def_probs, dim=1)
+            
+            correct_bn += (pred_bn == by_bn).sum().item()
+            correct_def += (pred_def == by_def).sum().item()
+            
+            conf_sum_bn += bn_conf.sum().item()
+            conf_sum_def += def_conf.sum().item()
+            
+            total_samples += len(by_bn)
+            
+    acc_bn = (correct_bn / total_samples) * 100.0
+    acc_def = (correct_def / total_samples) * 100.0
+    avg_conf_bn = (conf_sum_bn / total_samples) * 100.0
+    avg_conf_def = (conf_sum_def / total_samples) * 100.0
+    
+    print("\n=======================================================")
+    print(f"--- Quantitative Evaluation on test.csv ({total_samples} Windows) ---")
+    print("=======================================================")
+    print(f"  Bottleneck Head Accuracy: {acc_bn:.2f}%  |  Avg Confidence: {avg_conf_bn:.2f}%")
+    print(f"  Defect Head Accuracy:     {acc_def:.2f}%  |  Avg Confidence: {avg_conf_def:.2f}%")
+    print("=======================================================")
+
+
+# ==========================================
+# 4. Live Floor Inference Demonstration (test.csv)
+# ==========================================
+def simulate_live_inference(model: nn.Module, test_dataset: PlantWideDataset):
+    model.eval()
+    print("\n--- Live Sample Predictions from test.csv ---")
     
     test_indices = [
-        ("Normal Flow Window (Step 50)", 40),
-        ("Defect Window (Step 155, Station 12)", 145),
-        ("Bottleneck Window (Step 450, Station 20)", len(dataset) - 10)
+        ("Normal Flow Window (Time Step 50)", 40),
+        ("Pre-Bottleneck Window (Time Step 160)", 150),
+        ("Active Bottleneck Window (Time Step 220, Station 20)", 210),
+        ("Final Observation Window (Time Step 249)", len(test_dataset) - 1)
     ]
     
     with torch.no_grad():
         for name, idx in test_indices:
-            idx = min(idx, len(dataset) - 1)
-            sample_x, true_bn, true_def = dataset[idx]
+            idx = min(idx, len(test_dataset) - 1)
+            sample_x, true_bn, true_def = test_dataset[idx]
             sample_x_batch = sample_x.unsqueeze(0)
             
             bn_logits, def_logits = model(sample_x_batch)
@@ -154,9 +208,12 @@ def simulate_live_inference(model: nn.Module, dataset: PlantWideDataset):
             bn_conf, pred_bn = torch.max(torch.softmax(bn_logits, dim=1), dim=1)
             def_conf, pred_def = torch.max(torch.softmax(def_logits, dim=1), dim=1)
             
+            bn_match = "[MATCH]" if pred_bn.item() == true_bn.item() else "[MISMATCH]"
+            def_match = "[MATCH]" if pred_def.item() == true_def.item() else "[MISMATCH]"
+            
             print(f"\n[{name}]")
-            print(f"  Bottleneck -> Target: Station {true_bn.item():02d} | Pred: Station {pred_bn.item():02d} ({bn_conf.item()*100:.1f}% Conf)")
-            print(f"  Defect     -> Target: Station {true_def.item():02d} | Pred: Station {pred_def.item():02d} ({def_conf.item()*100:.1f}% Conf)")
+            print(f"  Bottleneck -> Target: Station {true_bn.item():02d} | Pred: Station {pred_bn.item():02d} ({bn_conf.item()*100:.1f}% Conf) {bn_match}")
+            print(f"  Defect     -> Target: Station {true_def.item():02d} | Pred: Station {pred_def.item():02d} ({def_conf.item()*100:.1f}% Conf) {def_match}")
 
 
 if __name__ == "__main__":
