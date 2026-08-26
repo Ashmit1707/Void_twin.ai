@@ -190,16 +190,21 @@ def simulate_live_inference(model: nn.Module, test_dataset: PlantWideDataset):
     model.eval()
     print("\n--- Live Sample Predictions from test.csv ---")
     
-    test_indices = [
-        ("Normal Flow Window (Time Step 50)", 40),
-        ("Pre-Bottleneck Window (Time Step 160)", 150),
-        ("Active Bottleneck Window (Time Step 220, Station 20)", 210),
-        ("Final Observation Window (Time Step 249)", len(test_dataset) - 1)
+    n = len(test_dataset)
+    if n == 0:
+        print("Test dataset is empty.")
+        return
+        
+    step_indices = [
+        ("Early Window", max(0, int(0.1 * n))),
+        ("Mid-Early Window", max(0, int(0.4 * n))),
+        ("Mid-Late Window", max(0, int(0.7 * n))),
+        ("Final Observation Window", n - 1)
     ]
     
     with torch.no_grad():
-        for name, idx in test_indices:
-            idx = min(idx, len(test_dataset) - 1)
+        for name, idx in step_indices:
+            idx = min(idx, n - 1)
             sample_x, true_bn, true_def = test_dataset[idx]
             sample_x_batch = sample_x.unsqueeze(0)
             
