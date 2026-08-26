@@ -1,0 +1,9 @@
+# Data processing and numerical operations
+numpy
+pandas
+
+# Machine Learning framework
+torch
+
+# Interactive dashboard
+streamlit
