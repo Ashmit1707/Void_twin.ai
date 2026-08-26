@@ -101,7 +101,7 @@ def get_factory_topology():
                 "type": config.station_type.value,
                 "status": config.sensor_maturity.value
             })
-        enriched_nodes.pages.append(node_info) if hasattr(enriched_nodes, 'pages') else enriched_nodes.append(node_info)
+        enriched_nodes.append(node_info)
     
     return {
         "nodes": enriched_nodes,

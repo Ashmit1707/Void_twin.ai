@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 
-
 np.random.seed(42)
 
 NUM_STATIONS = 40
@@ -49,7 +48,7 @@ for t in range(TIME_STEPS):
             vibration = np.random.normal(120.0, 8.0) + (equipment_wear * 25.0)
             temp = ambient_temp + 45.0 + np.random.normal(0, 1.5)
 
-        # Bottleneck simulation
+        # Bottleneck simulation: Station 20 develops severe congestion and bottleneck after t > 300
         bottleneck_risk = 0
         if t > 300:
             if station_id == 20:
@@ -61,9 +60,11 @@ for t in range(TIME_STEPS):
                 queue_length = 0
                 throughput = 0.0
 
-        # Physical defect simulation
+        # Physical defect simulation: Defect occurs during batch severity spikes or severe mechanical distress
         defect_risk = 0
-        if equipment_wear > 0.8 and (torque > 55.0 or vibration > 140.0):
+        if (140 <= t <= 170 and station_id == 12) or (380 <= t <= 410 and station_id == 35):
+            defect_risk = 1
+        elif equipment_wear > 0.75 and ((torque is not np.nan and torque > 55.0) or (vibration is not np.nan and vibration > 140.0)):
             defect_risk = 1
 
         data.append([
@@ -72,7 +73,6 @@ for t in range(TIME_STEPS):
             batch_defect_severity, bottleneck_risk, defect_risk
         ])
 
-# IMPORTANT: defect_risk is now included here!
 columns = [
     'time_step', 'station_id', 'is_parallel', 'cycle_time', 'queue_length',
     'throughput', 'torque_nm', 'vibration_hz', 'temperature_c',
@@ -84,9 +84,12 @@ df = pd.DataFrame(data, columns=columns)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 RAW_DATA_DIR = PROJECT_ROOT / "data" / "raw"
-RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)  # Creates the folder if it doesn't exist
+RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 output_filepath = RAW_DATA_DIR / "plant_twin_data.csv"
-
 df.to_csv(output_filepath, index=False)
-print(f"Data generated successfully: {len(df)} records saved to 'plant_twin_data.csv'.")
+
+synth_filepath = Path(__file__).parent / "synthetic_factory_data.csv"
+df.to_csv(synth_filepath, index=False)
+
+print(f"Data generated successfully: {len(df)} records saved to '{output_filepath}'.")

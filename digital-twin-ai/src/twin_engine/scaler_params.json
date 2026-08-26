@@ -1,0 +1,26 @@
+{
+  "means": {
+    "cycle_time": 47.10387777676685,
+    "queue_length": 2.53065,
+    "throughput": 9.389468500585982,
+    "torque_nm": 53.03189082626235,
+    "vibration_hz": 126.24951105545941,
+    "temperature_c": 68.99772545709422
+  },
+  "stds": {
+    "cycle_time": 2.116612931936699,
+    "queue_length": 1.2411033777972402,
+    "throughput": 2.002952221719958,
+    "torque_nm": 3.6797585787760063,
+    "vibration_hz": 7.30858141390819,
+    "temperature_c": 2.3054149099921264
+  },
+  "impute_means": {
+    "cycle_time": 47.10387777676685,
+    "queue_length": 2.53065,
+    "throughput": 9.389468500585982,
+    "torque_nm": 53.03189082626235,
+    "vibration_hz": 126.24951105545944,
+    "temperature_c": 68.99772545709423
+  }
+}
