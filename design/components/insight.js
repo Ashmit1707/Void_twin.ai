@@ -4,18 +4,22 @@
 // ============================================================
 
 function openInsight(stationId) {
+  window._lastOpenedStationId = stationId;
   const station = STATIONS.find(s => s.id === stationId);
   if (!station) return;
 
-  const currentRisk = station.risk[station.risk.length - 1];
-  const prevRisk    = station.risk[station.risk.length - 2];
+  const currentRisk = typeof getCurrentRisk === 'function' ? getCurrentRisk(station) : station.risk[station.risk.length - 1];
+  const arr = typeof getRiskArray === 'function' ? getRiskArray(station) : station.risk;
+  const curIdx = typeof currentTimeIndex !== 'undefined' ? Math.min(currentTimeIndex, arr.length - 1) : arr.length - 1;
+  const prevIdx = Math.max(0, curIdx - 1);
+  const prevRisk = arr[prevIdx];
   const level       = getRiskLevel(currentRisk);
   const color       = getRiskColor(currentRisk);
 
   // Predicted next risk (simple linear extrapolation of last 3 steps)
-  const last3   = station.risk.slice(-3);
-  const avgDelta = ((last3[2] - last3[1]) + (last3[1] - last3[0])) / 2;
-  const predicted = Math.min(100, Math.round(currentRisk + avgDelta));
+  const last3   = arr.slice(Math.max(0, curIdx - 2), curIdx + 1);
+  const avgDelta = last3.length >= 3 ? ((last3[2] - last3[1]) + (last3[1] - last3[0])) / 2 : (currentRisk - prevRisk);
+  const predicted = Math.min(100, Math.max(0, Math.round(currentRisk + avgDelta)));
 
   // Trend
   const delta = currentRisk - prevRisk;

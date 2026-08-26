@@ -93,6 +93,27 @@ const STATIONS = [
   },
 ];
 
+// ── LOAD UPLOADED DATA (if the user came from index.html with a CSV) ──
+// index.html stores parsed stations in localStorage before redirecting
+// here. If present, it fully replaces the built-in demo stations —
+// STATIONS stays a const binding, only its contents are swapped.
+let uploadMeta = null; // { filename, uploadedAt, engine } — read by dashboard.html for the badge
+
+(function loadUploadedStations() {
+  try {
+    const raw = localStorage.getItem('dt_upload');
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (parsed && Array.isArray(parsed.stations) && parsed.stations.length > 0) {
+      STATIONS.length = 0;
+      parsed.stations.forEach(s => STATIONS.push(s));
+      uploadMeta = { filename: parsed.filename, uploadedAt: parsed.uploadedAt, engine: parsed.engine || 'local' };
+    }
+  } catch (e) {
+    console.warn('Could not load uploaded station data — using demo dataset.', e);
+  }
+})();
+
 // ── HELPERS ───────────────────────────────────────────────────
 function getRiskLevel(score) {
   if (score >= 75) return 'critical';
@@ -112,21 +133,81 @@ function getRiskLabel(level) {
   return { low: 'Low', medium: 'Medium', high: 'High', critical: 'Critical' }[level];
 }
 
+// ── LIVE PLAYBACK STATE ──────────────────────────────────────
+// currentTimeIndex points into each station's extended 24-step
+// risk array (station._risk24, built by timeline.js). Every
+// component reads "now" through getCurrentRisk() so the whole
+// dashboard — heatmap, table, KPIs, insight panel — advances
+// together when the timeline is played or scrubbed.
+let currentTimeIndex = 23; // starts at the latest step (full shift)
+
+function getRiskArray(station) {
+  return station._risk24 || station.risk;
+}
+
+function getCurrentRisk(station) {
+  const arr = getRiskArray(station);
+  const idx = Math.min(currentTimeIndex, arr.length - 1);
+  return arr[idx];
+}
+
 // Active filters state
 let activeFilters = { risk: 'all', zone: 'all', time: 'all' };
+
+function getFilteredStations() {
+  return STATIONS.filter(s => {
+    const level = getRiskLevel(getCurrentRisk(s));
+    if (activeFilters.risk !== 'all' && level !== activeFilters.risk) return false;
+    if (activeFilters.zone !== 'all' && !s.zone.startsWith(activeFilters.zone)) return false;
+    return true;
+  });
+}
 
 function applyFilters() {
   activeFilters.risk = document.getElementById('filterRisk').value;
   activeFilters.zone = document.getElementById('filterZone').value;
   activeFilters.time = document.getElementById('filterTime').value;
+  refreshAll();
+}
 
-  const filtered = STATIONS.filter(s => {
-    const level = getRiskLevel(s.risk[s.risk.length - 1]);
-    if (activeFilters.risk !== 'all' && level !== activeFilters.risk) return false;
-    if (activeFilters.zone !== 'all' && !s.zone.startsWith(activeFilters.zone)) return false;
-    return true;
-  });
-
+// Recompute and re-render everything for the current time step.
+// Called by filters, by the play loop, and by the scrubber.
+function refreshAll() {
+  const filtered = getFilteredStations();
   renderTimeline(filtered);
   renderTable(filtered);
+  updateKPIs(filtered);
+
+  // Keep an open insight panel live-updating as time advances
+  if (window._lastOpenedStationId) {
+    openInsight(window._lastOpenedStationId);
+  }
+}
+
+function updateKPIs(filtered) {
+  const all = filtered && filtered.length ? filtered : STATIONS;
+
+  const highRisk = all.filter(s => {
+    const lvl = getRiskLevel(getCurrentRisk(s));
+    return lvl === 'high' || lvl === 'critical';
+  }).length;
+
+  const avgUtil = all.reduce((sum, s) => sum + s.util, 0) / all.length;
+
+  // Queue time nudges up as more stations go into high/critical risk —
+  // simple illustrative correlation, not a real queueing model.
+  const baseQueue = 1.6;
+  const avgQueue = baseQueue + highRisk * 0.28;
+
+  const elHighRisk = document.getElementById('kpiHighRisk');
+  const elUtil      = document.getElementById('kpiUtil');
+  const elQueue      = document.getElementById('kpiQueue');
+  const elTimeLabel  = document.getElementById('kpiTimeLabel');
+
+  if (elHighRisk) elHighRisk.textContent = highRisk;
+  if (elUtil)      elUtil.textContent = avgUtil.toFixed(1) + '%';
+  if (elQueue)      elQueue.textContent = avgQueue.toFixed(1) + 'm';
+  if (elTimeLabel && typeof TL_TIMES !== 'undefined') {
+    elTimeLabel.textContent = TL_TIMES[currentTimeIndex] || '';
+  }
 }

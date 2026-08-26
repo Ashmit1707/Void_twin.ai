@@ -1039,3 +1039,54 @@ tbody td {
   flex-shrink: 0;
   cursor: help;
 }
+
+/* ============================================================
+   CSV UPLOAD — error / warning banners + sample link
+   ============================================================ */
+.upload-error {
+  font-size: 0.78rem;
+  color: var(--risk-critical);
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.85rem;
+  line-height: 1.5;
+}
+
+.upload-warning {
+  font-size: 0.78rem;
+  color: var(--risk-medium);
+  background: rgba(234, 179, 8, 0.1);
+  border: 1px solid rgba(234, 179, 8, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.85rem;
+  line-height: 1.5;
+}
+
+.sample-link {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-family: var(--font);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  padding: 0.2rem;
+}
+
+.sample-link:hover { color: var(--brand-cyan); }
+
+/* ============================================================
+   DASHBOARD — data source badge
+   ============================================================ */
+.source-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+  border: 1px solid var(--border-light);
+  border-radius: 99px;
+  padding: 0.15rem 0.6rem;
+  margin-left: 0.5rem;
+}

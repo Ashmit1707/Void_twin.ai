@@ -31,7 +31,7 @@ function sortTable(key) {
 
 function getFilteredStations() {
   return STATIONS.filter(s => {
-    const currentRisk = s.risk[s.risk.length - 1];
+    const currentRisk = typeof getCurrentRisk === 'function' ? getCurrentRisk(s) : s.risk[s.risk.length - 1];
     const level = getRiskLevel(currentRisk);
     if (activeFilters.risk !== 'all' && level !== activeFilters.risk) return false;
     if (activeFilters.zone !== 'all' && !s.zone.startsWith(activeFilters.zone)) return false;
@@ -53,8 +53,8 @@ function renderTable(stations) {
       case 'util':  av = a.util;  bv = b.util;  break;
       case 'risk':
       default:
-        av = a.risk[a.risk.length - 1];
-        bv = b.risk[b.risk.length - 1];
+        av = typeof getCurrentRisk === 'function' ? getCurrentRisk(a) : a.risk[a.risk.length - 1];
+        bv = typeof getCurrentRisk === 'function' ? getCurrentRisk(b) : b.risk[b.risk.length - 1];
     }
     if (av < bv) return -1 * sortDir;
     if (av > bv) return  1 * sortDir;
@@ -65,8 +65,11 @@ function renderTable(stations) {
   if (!tbody) return;
 
   tbody.innerHTML = sorted.map(station => {
-    const currentRisk = station.risk[station.risk.length - 1];
-    const prevRisk    = station.risk[station.risk.length - 2];
+    const arr = typeof getRiskArray === 'function' ? getRiskArray(station) : station.risk;
+    const curIdx = typeof currentTimeIndex !== 'undefined' ? Math.min(currentTimeIndex, arr.length - 1) : arr.length - 1;
+    const prevIdx = Math.max(0, curIdx - 1);
+    const currentRisk = arr[curIdx];
+    const prevRisk    = arr[prevIdx];
     const level       = getRiskLevel(currentRisk);
     const color       = getRiskColor(currentRisk);
 

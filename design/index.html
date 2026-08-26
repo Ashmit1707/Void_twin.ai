@@ -49,6 +49,12 @@
           <input type="file" id="fileInput" accept=".csv" hidden />
         </div>
 
+        <!-- ERROR BANNER — shown only when validation fails -->
+        <div class="upload-error hidden" id="uploadError"></div>
+
+        <!-- WARNING BANNER — shown when file is valid but some rows were skipped -->
+        <div class="upload-warning hidden" id="uploadWarning"></div>
+
         <div class="upload-divider">
           <span class="upload-divider-line"></span>
           <span class="upload-divider-text">or</span>
@@ -57,6 +63,10 @@
 
         <button class="btn btn--ghost" id="demoBtn" onclick="startDemo()">
           Try Demo Dataset
+        </button>
+
+        <button class="sample-link" onclick="downloadSampleCSV()">
+          ↓ Download sample CSV format
         </button>
       </div>
 
@@ -96,24 +106,132 @@
     </div>
   </div>
 
+  <script src="components/csv.js"></script>
   <script>
-    // File input trigger
+    const dropZone     = document.getElementById('dropZone');
+    const errorBox      = document.getElementById('uploadError');
+    const warningBox     = document.getElementById('uploadWarning');
+
+    // ── FILE INPUT / DRAG & DROP ──────────────────────────────
     document.getElementById('fileInput').addEventListener('change', (e) => {
-      if (e.target.files.length > 0) startProcessing();
+      if (e.target.files.length > 0) handleFile(e.target.files[0]);
     });
 
-    // Drag and drop
-    const dropZone = document.getElementById('dropZone');
     dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drop-zone--active'); });
     dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drop-zone--active'));
     dropZone.addEventListener('drop', (e) => {
       e.preventDefault();
       dropZone.classList.remove('drop-zone--active');
-      if (e.dataTransfer.files.length > 0) startProcessing();
+      if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
     });
 
-    function startDemo() { startProcessing(); }
+    // ── BACKEND CONNECTION ────────────────────────────────────
+    // If backend/main.py is running locally, we get real Isolation
+    // Forest anomaly scoring. If it's not running (or unreachable),
+    // we fall back to the client-side parser below — the demo never
+    // breaks just because the server wasn't started.
+    const API_BASE = 'http://localhost:8000';
+    const API_TIMEOUT_MS = 2500;
 
+    async function tryBackendUpload(file) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch(`${API_BASE}/api/upload`, {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          return { reachable: true, ok: false, errors: [body.detail || 'Backend rejected the file.'] };
+        }
+        const data = await res.json();
+        return { reachable: true, ok: true, stations: data.stations, warnings: data.warnings || [] };
+      } catch (err) {
+        clearTimeout(timeout);
+        return { reachable: false }; // server not running / network error — fall back silently
+      }
+    }
+
+    // ── HANDLE UPLOADED FILE ──────────────────────────────────
+    async function handleFile(file) {
+      clearMessages();
+
+      if (!file.name.toLowerCase().endsWith('.csv')) {
+        showError('Please upload a .csv file.');
+        return;
+      }
+
+      // Try the backend first — gives real ML anomaly scoring
+      const backendResult = await tryBackendUpload(file);
+
+      if (backendResult.reachable) {
+        if (!backendResult.ok) {
+          showError(backendResult.errors.join(' '));
+          return;
+        }
+        finishUpload(file, backendResult.stations, backendResult.warnings, 'backend');
+        return;
+      }
+
+      // Backend unreachable — fall back to the client-side parser
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = processCSVFile(e.target.result);
+        if (!result.ok) {
+          showError(result.errors.join(' '));
+          return;
+        }
+        finishUpload(file, result.stations, result.warnings, 'local');
+      };
+      reader.onerror = () => showError('Could not read that file. Please try again.');
+      reader.readAsText(file);
+    }
+
+    function finishUpload(file, stations, warnings, engine) {
+      if (warnings.length > 0) {
+        showWarning(`${stations.length} station(s) loaded. ${warnings.length} row(s) skipped — ${warnings.slice(0, 2).join(' ')}${warnings.length > 2 ? ' …' : ''}`);
+      }
+
+      // Hand off to the dashboard via localStorage — this is a
+      // plain multi-page site, so this is how index.html passes
+      // parsed data to dashboard.html.
+      localStorage.setItem('dt_upload', JSON.stringify({
+        filename: file.name,
+        uploadedAt: new Date().toISOString(),
+        stations,
+        engine, // 'backend' (real Isolation Forest) or 'local' (client-side rule-based only)
+      }));
+
+      startProcessing();
+    }
+
+    function startDemo() {
+      clearMessages();
+      localStorage.removeItem('dt_upload'); // fall back to built-in demo data
+      startProcessing();
+    }
+
+    function showError(msg) {
+      errorBox.textContent = '⚠ ' + msg;
+      errorBox.classList.remove('hidden');
+    }
+
+    function showWarning(msg) {
+      warningBox.textContent = 'ℹ ' + msg;
+      warningBox.classList.remove('hidden');
+    }
+
+    function clearMessages() {
+      errorBox.classList.add('hidden');
+      warningBox.classList.add('hidden');
+    }
+
+    // ── PROCESSING ANIMATION ──────────────────────────────────
     function startProcessing() {
       document.getElementById('processingOverlay').classList.remove('hidden');
       const steps = ['step1','step2','step3','step4','step5','step6'];

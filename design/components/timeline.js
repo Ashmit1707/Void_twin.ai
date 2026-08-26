@@ -1,7 +1,18 @@
 // ============================================================
-// DigitalTwin.ai — Timeline Component (Line + Milestone Dots)
-// Renders station performance as horizontal lines with coloured
-// milestone dots whenever bottleneck probability shifts levels.
+// DigitalTwin.ai — Timeline Component (dot / connecting-line style)
+// Renders into the classes already defined in styles.css:
+//   .tl-row, .tl-connecting-line, .tl-milestone-dot, .dot--<level>,
+//   .dot-inner, .pulse-ring, .tl-minor-tick, .tl-header-row,
+//   .tl-time-label, .tl-station-label, .sensor-poor-dot
+//
+// A "milestone" dot is drawn wherever a station's risk LEVEL
+// changes from the previous step (or at the very first / last
+// step, so every row always shows a clear start and current
+// state). Every other step is a small minor tick — still
+// hoverable/clickable, just visually quieter.
+//
+// NOTE: STATIONS, getRiskLevel, getRiskColor, getRiskLabel are
+// defined in data.js, which must load before this file.
 // ============================================================
 
 const TL_TIMES = [
@@ -11,11 +22,12 @@ const TL_TIMES = [
   '14:00','14:20','14:40','15:00','15:20','15:40'
 ];
 
-const CELL_W  = 36;  // px per time step
-const CELL_G  = 5;   // gap between steps
-const LABEL_W = 82;  // station name column
+const CELL_W  = 36;  // px per time-step column
+const CELL_G  = 5;   // gap between columns
+const LABEL_W = 82;  // station name column width
 
-// Extend a 10-point risk array to 24 points with momentum + noise
+// Extend a 10-point base risk array to 24 points with momentum + noise,
+// so the timeline is wider than the panel and scrolls horizontally.
 function extendRisk(base) {
   const r = [...base];
   while (r.length < TL_TIMES.length) {
@@ -28,10 +40,22 @@ function extendRisk(base) {
   return r;
 }
 
-// Attach extended arrays once
 STATIONS.forEach(s => {
   if (!s._risk24) s._risk24 = extendRisk(s.risk);
 });
+
+// Which indices in a risk array should render as full milestone dots:
+// the first step, the last step, and any step where the risk LEVEL
+// (low/medium/high/critical) differs from the step before it.
+function getMilestoneIndices(risks) {
+  const milestones = new Set([0, risks.length - 1]);
+  for (let i = 1; i < risks.length; i++) {
+    if (getRiskLevel(risks[i]) !== getRiskLevel(risks[i - 1])) {
+      milestones.add(i);
+    }
+  }
+  return milestones;
+}
 
 // ── RENDER ────────────────────────────────────────────────────
 function renderTimeline(stations) {
@@ -40,9 +64,10 @@ function renderTimeline(stations) {
   if (!container) return;
 
   const totalW = LABEL_W + TL_TIMES.length * (CELL_W + CELL_G);
+
   let html = `<div class="tl-scroll-wrap"><div class="tl-inner" style="width:${totalW}px;">`;
 
-  // Header row (Time Labels)
+  // Header — time labels every 3rd step to avoid crowding
   html += `<div class="tl-header-row">`;
   html += `<div style="width:${LABEL_W}px;flex-shrink:0;"></div>`;
   TL_TIMES.forEach((t, i) => {
@@ -50,54 +75,45 @@ function renderTimeline(stations) {
   });
   html += `</div>`;
 
-  // Station rows (Line + Milestone Dots)
+  // Station rows
   stations.forEach(s => {
-    const risks = s._risk24;
-    const badge = s.sensor ? '' : `<span class="sensor-poor-dot" title="Estimated — sensor-poor">~</span>`;
+    const risks      = s._risk24;
+    const milestones = getMilestoneIndices(risks);
+    const badge = s.sensor
+      ? ''
+      : `<span class="sensor-poor-dot" title="Estimated — sensor-poor">~</span>`;
 
-    html += `<div class="tl-row tl-line-row">`;
+    html += `<div class="tl-row">`;
     html += `<div class="tl-station-label" style="width:${LABEL_W}px;">${badge}<span>${s.name}</span></div>`;
 
-    // Track container for horizontal line & milestone dots
-    html += `<div class="tl-track-container" style="flex:1; display:flex; gap:${CELL_G}px; position:relative; align-items:center;">`;
-    
-    // Background connecting line across row
-    html += `<div class="tl-connecting-line"></div>`;
-
-    let prevLevel = null;
+    // Connecting line spans only the dot area, not the label column
+    html += `<div class="tl-connecting-line" style="left:${LABEL_W}px;right:0;"></div>`;
 
     risks.forEach((score, ti) => {
-      const level = getRiskLevel(score);
-      // Determine if this timestamp is a milestone (initial point, risk level change, or critical peak)
-      const isMilestone = (ti === 0) || (level !== prevLevel) || (level === 'critical' && score >= 85);
-      prevLevel = level;
+      const level    = getRiskLevel(score);
+      const isMile   = milestones.has(ti);
+      const handlers = `
+        onmouseenter="showTooltip(event,'${s.id}',${ti})"
+        onmouseleave="hideTooltip()"
+        onclick="openInsight('${s.id}')"`;
 
-      if (isMilestone) {
+      if (isMile) {
+        const pulse = level === 'critical' ? ' pulse-ring' : '';
         html += `
-          <div class="tl-step-node" style="width:${CELL_W}px; justify-content:center; display:flex; position:relative; z-index:2;">
-            <div class="tl-milestone-dot dot--${level} ${level === 'critical' ? 'pulse-ring' : ''}"
-              onmouseenter="showTooltip(event,'${s.id}',${ti})"
-              onmouseleave="hideTooltip()"
-              onclick="openInsight('${s.id}')"
-              title="${s.name} @ ${TL_TIMES[ti]}: ${score}% (${level.toUpperCase()})">
+          <div style="width:${CELL_W}px;display:flex;justify-content:center;position:relative;z-index:2;">
+            <div class="tl-milestone-dot dot--${level}${pulse}" ${handlers}>
               <span class="dot-inner"></span>
             </div>
           </div>`;
       } else {
-        // Minor tick along line for continuous hover accessibility
         html += `
-          <div class="tl-step-node" style="width:${CELL_W}px; justify-content:center; display:flex; position:relative; z-index:1;">
-            <div class="tl-minor-tick tick--${level}"
-              onmouseenter="showTooltip(event,'${s.id}',${ti})"
-              onmouseleave="hideTooltip()"
-              onclick="openInsight('${s.id}')">
-            </div>
+          <div style="width:${CELL_W}px;display:flex;justify-content:center;position:relative;z-index:2;">
+            <div class="tl-minor-tick" ${handlers}></div>
           </div>`;
       }
     });
 
-    html += `</div>`; // end tl-track-container
-    html += `</div>`; // end tl-row
+    html += `</div>`;
   });
 
   html += `</div></div>`;
@@ -119,9 +135,9 @@ function showTooltip(e, stationId, ti) {
   if (ti > 0) {
     const d = score - s._risk24[ti - 1];
     trend = d > 0
-      ? `<span style="color:var(--risk-critical)">▲ +${d}%</span>`
+      ? `<span style="color:var(--risk-critical)">▲ +${d}</span>`
       : d < 0
-      ? `<span style="color:var(--risk-low)">▼ ${d}%</span>`
+      ? `<span style="color:var(--risk-low)">▼ ${d}</span>`
       : `<span style="color:var(--text-muted)">— stable</span>`;
   }
 
@@ -140,7 +156,7 @@ function showTooltip(e, stationId, ti) {
       <span class="tooltip-key">Bottleneck Risk</span>
       <span class="tooltip-val" style="color:${getRiskColor(score)}">${score} / 100</span>
     </div>
-    <div><span class="tooltip-risk-badge badge--${level}">${getRiskLabel(level)} Milestone</span></div>
+    <div><span class="tooltip-risk-badge badge--${level}">${getRiskLabel(level)}</span></div>
     ${sensorNote}
   `;
   positionTooltip(e);
@@ -148,11 +164,10 @@ function showTooltip(e, stationId, ti) {
 }
 
 function hideTooltip() {
-  if (tooltip) tooltip.classList.remove('visible');
+  tooltip.classList.remove('visible');
 }
 
 function positionTooltip(e) {
-  if (!tooltip) return;
   const pad = 14, tw = 210, th = 180;
   let left = e.clientX + pad;
   let top  = e.clientY + pad;
@@ -163,6 +178,5 @@ function positionTooltip(e) {
 }
 
 document.addEventListener('mousemove', e => {
-  if (tooltip && tooltip.classList.contains('visible')) positionTooltip(e);
+  if (tooltip.classList.contains('visible')) positionTooltip(e);
 });
-

@@ -29,6 +29,7 @@
         <span class="line-dot"></span>
         <span>Line Alpha</span>
         <span class="text-muted" style="font-size:0.72rem;">— Active Monitoring</span>
+        <span class="source-badge" id="sourceBadge"></span>
       </div>
       <div class="dash-filters">
         <select class="filter-select" id="filterRisk" onchange="applyFilters()">
@@ -57,7 +58,7 @@
     <div class="kpi-row">
       <div class="kpi-card">
         <span class="kpi-label">Active Stations</span>
-        <span class="kpi-value">42</span>
+        <span class="kpi-value" id="kpiActiveStations">42</span>
         <span class="kpi-delta kpi-delta--ok">
           <span>⬡</span> All operational
         </span>
@@ -173,6 +174,13 @@
   <script src="components/insight.js"></script>
   <script>
     // Boot
+    document.getElementById('kpiActiveStations').textContent = STATIONS.length;
+    if (uploadMeta) {
+      const engineLabel = uploadMeta.engine === 'backend' ? 'ML: Isolation Forest' : 'Rule-based';
+      document.getElementById('sourceBadge').textContent = `⬆ ${uploadMeta.filename} · ${engineLabel}`;
+    } else {
+      document.getElementById('sourceBadge').textContent = '◈ Demo Dataset';
+    }
     renderTimeline();
     renderTable(STATIONS);
   </script>
