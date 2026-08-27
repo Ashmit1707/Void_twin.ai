@@ -54,13 +54,10 @@ This means the frontend can eventually fetch from `/api/upload` or `/api/demo`
 instead of parsing CSVs client-side, with zero changes to `timeline.js`, `table.js`,
 or `insight.js` — they just read from `STATIONS`, wherever it came from.
 
-## Not Yet Wired Up
+## Frontend Integration Status
 
-The frontend (`index.html`) currently parses CSVs entirely client-side and never
-calls this API. Hooking them together is a small change — swap the `processCSVFile()`
-call in `index.html` for a `fetch('http://localhost:8000/api/upload', ...)` — but
-means the dashboard demo now depends on this server running. Worth doing once the
-CORS/local-server setup is confirmed to work reliably for a live pitch.
+✅ **Wired & Active**: The frontend (`index.html`) automatically attempts to send uploaded CSVs to `POST http://localhost:8000/api/upload` first for Isolation Forest ML scoring, falling back to the client-side parser only if the backend server is unreachable.
+
 
 ## Known Limitations (say this in the pitch, don't hide it)
 
