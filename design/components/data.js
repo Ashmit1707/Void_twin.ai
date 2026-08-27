@@ -139,7 +139,58 @@ function getRiskLabel(level) {
 // component reads "now" through getCurrentRisk() so the whole
 // dashboard — heatmap, table, KPIs, insight panel — advances
 // together when the timeline is played or scrubbed.
-let currentTimeIndex = 23; // starts at the latest step (full shift)
+let currentTimeIndex = 0; // Starts at step 0 (08:00) to demonstrate drift live!
+let isShiftPlaying = false;
+let shiftPlaybackTimer = null;
+
+function togglePlayback() {
+  if (isShiftPlaying) {
+    pausePlayback();
+  } else {
+    startPlayback();
+  }
+}
+
+function startPlayback() {
+  if (isShiftPlaying) return;
+  isShiftPlaying = true;
+  updatePlaybackUI();
+  shiftPlaybackTimer = setInterval(() => {
+    currentTimeIndex++;
+    if (currentTimeIndex >= 24) {
+      currentTimeIndex = 0; // loop back to shift start
+    }
+    refreshAll();
+  }, 1500); // Advances time step every 1.5s
+}
+
+function pausePlayback() {
+  isShiftPlaying = false;
+  if (shiftPlaybackTimer) clearInterval(shiftPlaybackTimer);
+  shiftPlaybackTimer = null;
+  updatePlaybackUI();
+}
+
+function resetPlayback() {
+  pausePlayback();
+  currentTimeIndex = 0;
+  refreshAll();
+}
+
+function updatePlaybackUI() {
+  const btnIcon = document.getElementById('playIcon');
+  const btnText = document.getElementById('playText');
+  if (btnIcon && btnText) {
+    if (isShiftPlaying) {
+      btnIcon.textContent = '❚❚';
+      btnText.textContent = 'Pause';
+    } else {
+      btnIcon.textContent = '▶';
+      btnText.textContent = 'Play Shift';
+    }
+  }
+}
+
 
 function getRiskArray(station) {
   return station._risk24 || station.risk;
@@ -211,3 +262,43 @@ function updateKPIs(filtered) {
     elTimeLabel.textContent = TL_TIMES[currentTimeIndex] || '';
   }
 }
+
+// ── LIVE API POLLING (PyTorch Dual-Head MTL Engine) ──────────────
+let liveMtlPrediction = null; // { bottleneck: {...}, defect: {...} }
+let isApiConnected = false;
+
+async function pollLivePredictions() {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 2000);
+    const res = await fetch('http://localhost:8000/api/v1/predict/status', { signal: controller.signal });
+    clearTimeout(timeout);
+
+    if (res.ok) {
+      const data = await res.json();
+      liveMtlPrediction = data;
+      isApiConnected = true;
+
+      // Update badge if element exists
+      const badge = document.getElementById('sourceBadge');
+      if (badge) {
+        let text = '🟢 AI Engine Online (PyTorch MTL)';
+        if (data.bottleneck && data.bottleneck.status === 'Warning') {
+          text += ` · Bottleneck Alert: Station ${data.bottleneck.predicted_station_id} (${data.bottleneck.confidence_pct}%)`;
+        }
+        badge.textContent = text;
+        badge.style.color = '#00d4ff';
+      }
+    }
+  } catch (err) {
+    isApiConnected = false;
+    // Keep existing fallback badge
+  }
+}
+
+// Poll backend predictions every 3 seconds if on dashboard
+if (typeof window !== 'undefined') {
+  pollLivePredictions();
+  setInterval(pollLivePredictions, 3000);
+}
+

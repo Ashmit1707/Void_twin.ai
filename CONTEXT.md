@@ -1,5 +1,5 @@
 # DigitalTwin.ai — Project Context Document
-> For handoff to other AI assistants. Last updated: Day 1 of 8.
+> For handoff to team members and AI assistants. Last updated: Current Stage.
 
 ---
 
@@ -7,33 +7,37 @@
 
 A hackathon submission for **Accenture Innovation Challenge 2026 — Round 2**.
 
-The project is called **DigitalTwin.ai** — a web-based predictive digital twin for vehicle assembly lines. It is a **proof-of-concept prototype**, not a production system.
+The project is called **DigitalTwin.ai** — a predictive digital twin for complex vehicle assembly lines. It provides real-time bottleneck prediction, latent defect tracing across station dependencies, and interactive visual management.
 
-The core demo: upload a CSV of production data → the system predicts which assembly stations are about to become bottlenecks → shows it visually before it happens.
-
----
-
-## Team
-
-- 3 people
-- 8 days total (currently Day 1)
-- Frontend is being built first; backend (FastAPI + ML) comes later
+The core capabilities:
+1. **Interactive Frontend Dashboard**: Drag & drop production CSVs or launch pre-loaded demo shifts, showing visual bottleneck prediction before line blockage occurs.
+2. **PyTorch Multi-Task Learning (MTL) Model**: Dual-head LSTM deep learning model predicting bottleneck risks and defect risks across all 40 line stations over rolling telemetry windows.
+3. **Latent Defect & Root Cause Tracker**: Isolates upstream temporal anomaly signals using DAG factory topology traversal (NetworkX + Isolation Forest).
+4. **Plant Simulation & Event Injector**: Dynamic simulator modeling Takt time, buffer sizes, sensor maturity, and parallel station lines with anomaly injection.
 
 ---
 
-## The One Demo Scenario (freeze this, don't change it)
+## Team & Architecture
 
-Paint-12 gradually drifts from risk score 12 → 91 over a shift.
-Downstream stations Paint-14 and Paint-16 show cascading starvation risk.
-The system catches this before it becomes a full bottleneck.
+- **Frontend & Visual Management**: Pure HTML5 / CSS3 / Vanilla JS (responsive industrial dark theme design system).
+- **Backend Services**: FastAPI microservices for live telemetry scoring, topology graph retrieval, and anomaly tracing.
+- **AI & Deep Learning Engine**: PyTorch dual-head MTL network + Random Forest & Isolation Forest baselines.
 
 ---
 
-## Parameters We Decided On
+## The One Demo Scenario
 
-- **40 stations** total: Body (15) → Paint (10) → Final Assembly (15)
+- **Paint-12** gradually drifts from risk score 12 → 91 over a shift.
+- Downstream stations **Paint-14** and **Paint-16** show cascading starvation risk.
+- The system predicts the bottleneck build-up and pinpoints upstream root causes before a total line shutdown.
+
+---
+
+## Line & Parameter Specifications
+
+- **40 stations total**: Body (15) → Paint (10) → Final Assembly (15)
 - **Takt time**: 60 seconds baseline
-- **Sensor coverage**: 28 stations fully instrumented, 12 sensor-poor (estimated)
+- **Sensor coverage**: Fully instrumented high-maturity stations + sensor-poor estimated stations
 - **Bottleneck thresholds**:
   - Cycle time > 72s (>20% over takt) → alert
   - Queue depth grows >3 vehicles in 5 min → alert
@@ -44,18 +48,18 @@ The system catches this before it becomes a full bottleneck.
 
 ---
 
-## Tech Stack (Lean — 3 people, 8 days)
+## Complete Tech Stack
 
-| Layer | Tool |
+| Layer | Tool / Technology |
 |---|---|
-| Frontend | Plain HTML + CSS + Vanilla JS (no framework) |
-| Charts/viz | Custom built — no chart library |
-| Backend (not yet built) | FastAPI (Python) |
-| ML (not yet built) | Scikit-learn — Isolation Forest + SPC thresholds |
-| Data | Synthetic — hardcoded in data.js, no real DB |
-| "Streaming" | Pre-generated JSON array, frontend polls every 2s |
-
-No Kafka, no InfluxDB, no React, no build step. Everything opens directly in a browser.
+| Frontend | HTML5, CSS3 (CSS Variables, Dark Aesthetic), Vanilla JS |
+| Charts & Heatmaps | Custom Grid & Canvas heatmaps (No third-party chart Bloat) |
+| Primary AI Server | FastAPI + Uvicorn (`digital-twin-ai/main.py`) |
+| Lightweight API | FastAPI (`backend/main.py`) for client-side CSV parsing |
+| Deep Learning | PyTorch (Dual-head Multi-Task Learning LSTM Network) |
+| Classical ML | Scikit-learn (Isolation Forest & Random Forest Bottleneck Classifier) |
+| Graph Topology | NetworkX (Directed Acyclic Graph for 40-station line topology) |
+| Data & Simulation | Pandas, NumPy, Synthetic Plant Simulator & Anomaly Injector |
 
 ---
 
@@ -63,110 +67,81 @@ No Kafka, no InfluxDB, no React, no build step. Everything opens directly in a b
 
 ```
 Accenture/
-├── design/
-│   ├── index.html           ✅ Done — Landing/upload page
-│   ├── dashboard.html       ✅ Done — Main dashboard shell
-│   ├── styles.css           ✅ Done — Full design system
+├── design/                          ✅ Frontend Interface
+│   ├── index.html                   ← Landing & CSV drag/drop upload page
+│   ├── dashboard.html               ← Main Digital Twin dashboard shell
+│   ├── styles.css                   ← Complete design system (industrial dark theme)
 │   └── components/
-│       ├── data.js          ✅ Done — All station data + helpers
-│       ├── timeline.js      ✅ Done — Heatmap viz (pill style, scrollable)
-│       ├── table.js         ✅ Done — Sortable station table
-│       └── insight.js       ✅ Done — Right-side detail panel
-├── twin_ai_PRD.txt          ✅ Reference
-├── CONTEXT.md               ✅ This file
-└── Readme.md                ✅ Done
+│       ├── data.js                  ← Station definitions & state helpers
+│       ├── timeline.js              ← Scrollable timeline heatmap viz
+│       ├── table.js                 ← Sortable station table component
+│       ├── insight.js               ← Right-side detail & root-cause insight panel
+│       └── csv.js                   ← Client-side CSV parser & heuristic evaluator
+│
+├── backend/                         ✅ Lightweight Backend Service
+│   ├── main.py                      ← FastAPI server for CSV upload scoring & demo endpoints
+│   ├── predictor.py                 ← Isolation Forest anomaly scorer for uploaded CSVs
+│   ├── demo_stations.json           ← Pre-built demo station data
+│   └── requirements.txt             ← Python dependencies for backend
+│
+├── digital-twin-ai/                 ✅ Full PyTorch AI & Simulation Engine
+│   ├── main.py                      ← Main AI Backend API (v2.5)
+│   ├── twin_mtl_model.pth           ← Trained PyTorch Dual-Head MTL weights
+│   ├── data/
+│   │   ├── raw/                     ← Telemetry CSV datasets (plant_twin_data.csv)
+│   │   └── reference/               ← Factory topology & station config specifications
+│   └── src/
+│       ├── data/                    ← Dataset loaders, DAG builders, and validators
+│       ├── models/                  ← Latent defect tracker & Random Forest models
+│       ├── simulation/              ← Plant simulator & anomaly injector
+│       └── twin_engine/             ← PyTorch MTL model definition, dataset & inference runner
+│
+├── twin_ai_PRD.txt                  ✅ Product Requirements Document
+├── CONTEXT.md                       ✅ Project Context & Blueprint (This document)
+└── README.md                        ✅ System Overview & Quickstart Guide
 ```
 
 ---
 
-## What Each File Does
+## Component Details
 
-### `index.html`
-- Landing page with drag & drop CSV upload
-- "Try Demo Dataset" button (skips upload, goes straight to processing)
-- Animated processing overlay: 6 steps (Reading → Validating → Engineering → Processing → Predicting → Building)
-- Redirects to `dashboard.html` on completion
+### Frontend (`design/`)
+- `index.html`: Drag & drop upload flow, interactive demo mode, multi-stage processing simulation.
+- `dashboard.html`: Main real-time command dashboard featuring KPIs, station table, heatmap timeline, and detail panels.
+- `styles.css`: Dark industrial theme using defined CSS variables (`--bg-base`, `--brand-cyan`, `--risk-low`, etc.).
+- `components/data.js`: Central state & station data definitions.
+- `components/timeline.js`: Scrollable 24-step risk heatmap with cell tooltips.
+- `components/table.js`: Sortable, filterable 40-station data table.
+- `components/insight.js`: Detailed drawer showing risk breakdown, contributing factors, and confidence metrics.
+- `components/csv.js`: Client-side fallback parser for CSV files.
 
-### `styles.css`
-Full design system. Dark industrial aesthetic. Key CSS variables:
-```css
---bg-base:       #0a0e1a
---bg-surface:    #0f1526
---bg-card:       #141b2d
---brand-cyan:    #00d4ff
---risk-low:      #22c55e   (green)
---risk-medium:   #eab308   (yellow)
---risk-high:     #f97316   (orange)
---risk-critical: #ef4444   (red)
-```
-Risk scale: 0–24 = low, 25–49 = medium, 50–74 = high, 75–100 = critical.
+### Lightweight Backend (`backend/`)
+- `GET /api/health`: Health check endpoint.
+- `POST /api/upload`: Receives uploaded factory CSV and computes station risk scores via Isolation Forest.
+- `GET /api/demo`: Returns standard 12/40-station demo payload.
 
-### `dashboard.html`
-Shell page. Loads all 4 component scripts in order:
-1. `data.js` (must be first — defines STATIONS and helpers)
-2. `timeline.js`
-3. `table.js`
-4. `insight.js`
-
-Contains:
-- Nav bar (Upload / Dashboard / Analytics tabs)
-- Line Alpha live badge with pulsing green dot
-- 3 filter dropdowns: Risk Level / Zone / Time Range
-- 4 KPI cards: Active Stations (42), High Risk Bottlenecks (5), Avg Utilisation (78.4%), Avg Queue Time (2.8m)
-- Panel slot for timeline heatmap
-- Panel slot for station table
-- Right-side insight panel
-
-### `data.js`
-Single source of truth. Defines:
-- `STATIONS` array — 12 stations (representative sample of the 40-station line)
-- Each station has: `id, name, zone, queue, takt, util, sensor, risk[], factors{}, confidence`
-- `getRiskLevel(score)` → 'low' | 'medium' | 'high' | 'critical'
-- `getRiskColor(score)` → CSS variable string
-- `getRiskLabel(level)` → display string
-- `activeFilters` object + `applyFilters()` function
-
-**Key stations:**
-| Station | Zone | Current Risk | Notes |
-|---|---|---|---|
-| Paint-12 | Paint | 91 | THE scenario station — drifts green→red |
-| Body-07 | Body | 76 | Secondary high-risk |
-| Paint-14 | Paint | 72 | Downstream cascade from Paint-12 |
-| Paint-16 | Paint | 65 | Also affected by cascade |
-| Final-03 | Final | 52 | Medium-high |
-| Body-11 | Body | 17 | Sensor-poor example |
-| Paint-14 | Paint | 72 | Sensor-poor example |
-| Final-08 | Final | 10 | Sensor-poor example |
-
-### `timeline.js`
-- Renders the heatmap as pill-shaped cells (rounded, not blocky squares)
-- 24 time steps (08:00–15:40, every 20 min) — horizontally scrollable
-- Base 10-point risk arrays extended to 24 via momentum extrapolation
-- Uses `TL_TIMES` (not `TIME_LABELS`) to avoid conflict with data.js
-- Each cell: hover shows tooltip, click opens insight panel
-- Sensor-poor stations show `~` badge on their label
-- Tooltip shows: station name, time, trend arrow, queue/takt/util/risk, sensor warning
-
-### `table.js`
-- Renders sortable station table
-- Default sort: Bottleneck Risk descending
-- Columns: Station, Zone, Queue, Takt, Utilisation, Bottleneck Risk
-- Each row has: zone colour badge, risk bar, trend arrow, risk level tag
-- Click any row → opens insight panel
-- Sensor-poor stations show `~est` badge
-
-### `insight.js`
-- Right-side panel, opens when a cell or table row is clicked
-- Shows: station name + zone, current risk score + level badge
-- Predicted next-window risk (linear extrapolation of last 3 steps)
-- Trend: Increasing / Decreasing / Stable
-- Contributing factors (sorted by impact): Queue Growth Rate, Cycle Time Deviation, Utilisation, Anomaly Score — each with a bar and description
-- Prediction confidence % (lower for sensor-poor stations)
-- Station metrics snapshot (queue, takt, util)
+### Primary AI Engine (`digital-twin-ai/`)
+- `GET /api/v1/topology`: Returns enriched factory station graph (nodes & directed edges).
+- `GET /api/v1/predict/status`: Runs rolling 10-step telemetry window through PyTorch Dual-Head MTL model to return live bottleneck and defect risk scores across all 40 stations.
+- `POST /api/v1/trace/defect`: Performs upstream temporal DAG search via `LatentDefectTracker` to find exact root-cause station for a reported defect.
 
 ---
 
-## Risk Score Formula (from PRD)
+## AI Model Specifications
+
+### 1. Dual-Head MTL LSTM Model (`digital-twin-ai/src/twin_engine/model.py`)
+- **Inputs**: Rolling 10-timestep sequence of station telemetry (cycle times, queue depths, utilisation, error rates).
+- **Head 1**: Bottleneck Risk Score (Regression / Probabilistic Risk 0.0 - 1.0).
+- **Head 2**: Latent Defect Risk Score (Multi-station probability vector).
+- **Weights**: Saved in `twin_mtl_model.pth`.
+
+### 2. Upstream Latent Defect Tracker (`digital-twin-ai/src/models/defect_tracker.py`)
+- Traverses factory DAG built with NetworkX.
+- Combines healthy baseline Isolation Forest scoring with upstream temporal lag traversal to trace downstream quality failures back to their originating station.
+
+---
+
+## Risk Score Formula Baseline
 
 ```
 Risk = 0.30 × cycle_time_deviation
@@ -175,56 +150,33 @@ Risk = 0.30 × cycle_time_deviation
      + 0.15 × anomaly_score
      + 0.10 × upstream_risk
 ```
-(Currently hardcoded in data.js. Backend will compute this properly.)
 
 ---
 
-## What Is NOT Built Yet
+## Current Status & Next Recommendations
 
-| Thing | Status | Notes |
+| Component | Status | Description |
 |---|---|---|
-| Backend (FastAPI) | ❌ Not started | Person B's job |
-| ML prediction engine | ❌ Not started | Person A's job — Isolation Forest + SPC |
-| CSV upload → processing | ❌ Not wired | Frontend upload works visually, not functionally |
-| Real data pipeline | ❌ Not started | All data is hardcoded in data.js |
-| Analytics tab | ❌ Placeholder | Nav link exists, no page |
-| Live polling / animation | ❌ Not started | Risk scores are static, not animating over time yet |
+| Frontend UI | ✅ Complete | Industrial dark mode dashboard, heatmap, station table, and insight drawer |
+| Lightweight Backend | ✅ Complete | FastAPI upload parser (`backend/main.py`) with Isolation Forest scoring |
+| PyTorch Dual-Head Model | ✅ Complete | Multi-Task LSTM engine (`digital-twin-ai/main.py`) for bottleneck & defect prediction |
+| Defect Root Cause Tracing | ✅ Complete | Upstream DAG temporal search module (`/api/v1/trace/defect`) wired to `insight.js` drawer |
+| Live API Polling | ✅ Complete | `data.js` polls `/api/v1/predict/status` every 3s to reflect PyTorch MTL predictions |
+| Shift Playback & Animation | ✅ Complete | Interactive Play/Pause (`▶` / `❚❚`) shift ticker advancing `08:00` → `15:40` with live Paint-12 drift |
+| `plant_twin_data.csv` Support | ✅ Complete | Extended client & backend parsers (`csv.js`, `predictor.py`) to parse `plant_twin_data.csv` format seamlessly |
+| UI Confidence Parameter | ✅ Complete | Added sortable **Confidence %** column to Station Table, timeline tooltips, and insight drawer |
+| End-to-End Verification | ✅ Complete | Verified backend execution on `http://127.0.0.1:8000` with full 40-station dataset |
+
 
 ---
 
-## Known Issues / Fixed Bugs
+## What To Do Next
 
-- `TIME_LABELS` was declared with `const` in both `data.js` and `timeline.js` — caused browser to throw error and render nothing. Fixed by renaming to `TL_TIMES` in timeline.js and removing it from data.js entirely.
+1. **Analytics & Historical Reporting Page**:
+   - Create an `analytics.html` page featuring shift summaries, station risk ranking, and bottleneck frequency metrics over historical shifts.
+2. **Interactive What-If Simulation Mode**:
+   - Add a UI control allowing floor managers to simulate interventions (e.g. *"What if we add +1 buffer vehicle at Paint-12 or reduce takt time by 5s?"*) and see predicted risk drop in real time.
+3. **Export Shift Summary Report**:
+   - Add PDF / CSV export of the full shift timeline and detected defect root causes for factory management handoff.
 
----
 
-## Design Decisions Made
-
-- **No framework** — plain HTML/CSS/JS only. Opens in browser with no build step.
-- **No chart library** — custom CSS grid heatmap is sufficient and faster to build.
-- **Pill-shaped cells** in heatmap (not blocky rectangles) — user preference.
-- **Horizontal scroll** on timeline — 24 time steps wider than viewport.
-- **Pre-generated data** — no real-time complexity; all risk scores are pre-computed arrays.
-- **Sensor-poor stations** shown with `~` badge — key differentiator for the pitch.
-- **Single demo scenario** — Paint-12 drift, frozen, demos cleanly every time.
-
----
-
-## What To Build Next (in order)
-
-1. **Animate the timeline** — step through time steps automatically, simulating live monitoring (setTimeout loop advancing a "current time" cursor across the heatmap)
-2. **Wire the CSV upload** — parse uploaded CSV, map columns to STATIONS format, replace hardcoded data
-3. **FastAPI backend** — POST /api/upload, GET /api/predictions/{job_id}
-4. **ML pipeline** — Isolation Forest anomaly detection + SPC thresholds on simulated data
-5. **Analytics page** — trend charts, station ranking, shift summary
-
----
-
-## Coding Rules (follow these)
-
-- All JS goes in `components/` as separate files
-- `data.js` MUST load before all other scripts (it defines globals everything else uses)
-- Never redeclare `const STATIONS` or any helper from `data.js` in other files
-- CSS variables only — never hardcode hex colours in JS or HTML
-- No `npm`, no build step, no frameworks
-- Keep it openable by double-clicking the HTML file in any browser

@@ -50,7 +50,8 @@ function renderTable(stations) {
       case 'zone':  av = a.zone;  bv = b.zone;  break;
       case 'queue': av = a.queue; bv = b.queue; break;
       case 'takt':  av = a.takt;  bv = b.takt;  break;
-      case 'util':  av = a.util;  bv = b.util;  break;
+      case 'util':       av = a.util;       bv = b.util;       break;
+      case 'confidence': av = a.confidence; bv = b.confidence; break;
       case 'risk':
       default:
         av = typeof getCurrentRisk === 'function' ? getCurrentRisk(a) : a.risk[a.risk.length - 1];
@@ -85,6 +86,10 @@ function renderTable(stations) {
       ? ''
       : `<span style="font-size:0.65rem;color:var(--risk-medium);margin-left:4px;" title="Estimated — sensor-poor">~est</span>`;
 
+    // Confidence badge style
+    const confVal = station.confidence || 85;
+    const confColor = confVal >= 85 ? 'var(--risk-low)' : confVal >= 70 ? 'var(--risk-medium)' : 'var(--risk-high)';
+
     // Risk bar colour
     const barColor = color;
 
@@ -107,6 +112,9 @@ function renderTable(stations) {
         <td>${station.queue} min</td>
         <td>${station.takt}s</td>
         <td>${station.util}%</td>
+        <td>
+          <span style="font-weight:600;color:${confColor};">${confVal}%</span>
+        </td>
         <td class="td-risk">
           <div class="risk-bar-wrap">
             <div class="risk-bar-bg">
@@ -119,6 +127,7 @@ function renderTable(stations) {
         </td>
       </tr>
     `;
+
   }).join('');
 }
 

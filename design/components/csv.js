@@ -63,9 +63,17 @@ function validateCSV(header, rows) {
   const errors = [];
   const warnings = [];
 
-  const missingCols = CSV_REQUIRED_COLUMNS.filter(c => !header.includes(c));
-  if (missingCols.length > 0) {
-    errors.push(`Missing required column(s): ${missingCols.join(', ')}`);
+  // Alias maps to support plant_twin_data.csv format seamlessly
+  const hasCycle = header.includes('cycle_time_sec') || header.includes('cycle_time');
+  const hasQueue = header.includes('queue_depth') || header.includes('queue_length');
+  const hasStation = header.includes('station_id');
+
+  if (!hasStation || !hasCycle || !hasQueue) {
+    const missing = [];
+    if (!hasStation) missing.push('station_id');
+    if (!hasCycle) missing.push('cycle_time_sec / cycle_time');
+    if (!hasQueue) missing.push('queue_depth / queue_length');
+    errors.push(`Missing required column(s): ${missing.join(', ')}`);
     return { errors, warnings, validRows: [] };
   }
 
@@ -78,18 +86,34 @@ function validateCSV(header, rows) {
   rows.forEach((row, i) => {
     const lineNo = i + 2; // +1 header, +1 for 1-indexing
     if (!row.station_id) { warnings.push(`Row ${lineNo}: missing station_id — skipped.`); return; }
-    if (!row.zone)        { warnings.push(`Row ${lineNo}: missing zone — skipped.`); return; }
 
-    const cycle = parseFloat(row.cycle_time_sec);
-    const queue = parseFloat(row.queue_depth);
-    const util  = parseFloat(row.utilization_pct);
+    const cycle = parseFloat(row.cycle_time_sec || row.cycle_time);
+    const queue = parseFloat(row.queue_depth || row.queue_length);
 
-    if (isNaN(cycle) || isNaN(queue) || isNaN(util)) {
-      warnings.push(`Row ${lineNo}: non-numeric cycle_time_sec / queue_depth / utilization_pct — skipped.`);
+    // Infer utilization if missing (e.g., from cycle vs 60s takt)
+    let util = parseFloat(row.utilization_pct);
+    if (isNaN(util)) {
+      const takt = parseFloat(row.takt_target_sec) || 60;
+      util = Math.min(100, Math.max(40, Math.round((cycle / takt) * 85)));
+    }
+
+    // Infer zone from station_id if zone is missing (1-15: Body, 16-25: Paint, 26-40: Final)
+    let zone = row.zone;
+    if (!zone) {
+      const stNum = parseInt(row.station_id, 10);
+      if (!isNaN(stNum)) {
+        zone = stNum <= 15 ? 'Body' : stNum <= 25 ? 'Paint' : 'Final';
+      } else {
+        zone = 'Body';
+      }
+    }
+
+    if (isNaN(cycle) || isNaN(queue)) {
+      warnings.push(`Row ${lineNo}: non-numeric cycle_time / queue_length — skipped.`);
       return;
     }
 
-    validRows.push({ ...row, _cycle: cycle, _queue: queue, _util: util, _line: lineNo });
+    validRows.push({ ...row, zone, _cycle: cycle, _queue: queue, _util: util, _line: lineNo });
   });
 
   if (validRows.length === 0) {
@@ -98,6 +122,7 @@ function validateCSV(header, rows) {
 
   return { errors, warnings, validRows };
 }
+
 
 // ── TRANSFORM ─────────────────────────────────────────────────
 // Simple, explainable rule-based risk score — the same three

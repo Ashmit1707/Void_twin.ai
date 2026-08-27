@@ -103,6 +103,27 @@ def build_stations_from_dataframe(df: pd.DataFrame) -> tuple[list[dict], list[st
     warnings: list[str] = []
     stations: list[dict] = []
 
+    # Map column aliases for plant_twin_data.csv compatibility
+    column_mapping = {
+        'cycle_time': 'cycle_time_sec',
+        'queue_length': 'queue_depth',
+    }
+    df = df.rename(columns={k: v for k, v in column_mapping.items() if k in df.columns})
+
+    # If zone missing, infer from station_id
+    if 'zone' not in df.columns and 'station_id' in df.columns:
+        def infer_zone(st_id):
+            try:
+                val = int(st_id)
+                return 'Body' if val <= 15 else ('Paint' if val <= 25 else 'Final')
+            except ValueError:
+                return 'Body'
+        df['zone'] = df['station_id'].apply(infer_zone)
+
+    # If utilization_pct missing, estimate from cycle_time vs 60s takt target
+    if 'utilization_pct' not in df.columns and 'cycle_time_sec' in df.columns:
+        df['utilization_pct'] = (df['cycle_time_sec'] / 60.0 * 85.0).clip(40.0, 100.0)
+
     required = {"station_id", "zone", "cycle_time_sec", "queue_depth", "utilization_pct"}
     missing = required - set(df.columns)
     if missing:
@@ -121,6 +142,7 @@ def build_stations_from_dataframe(df: pd.DataFrame) -> tuple[list[dict], list[st
 
     if df.empty:
         raise ValueError("No valid data rows after validation.")
+
 
     for station_id, group in df.groupby("station_id", sort=False):
         group = group.copy()

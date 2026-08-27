@@ -71,7 +71,9 @@ function renderTimeline(stations) {
   html += `<div class="tl-header-row">`;
   html += `<div style="width:${LABEL_W}px;flex-shrink:0;"></div>`;
   TL_TIMES.forEach((t, i) => {
-    html += `<div class="tl-time-label" style="width:${CELL_W}px;">${i % 3 === 0 ? t : ''}</div>`;
+    const isActive = (typeof currentTimeIndex !== 'undefined' && i === currentTimeIndex);
+    const activeStyle = isActive ? 'color:var(--brand-cyan);font-weight:700;border-bottom:2px solid var(--brand-cyan);' : '';
+    html += `<div class="tl-time-label" style="width:${CELL_W}px;${activeStyle}">${i % 3 === 0 || isActive ? t : ''}</div>`;
   });
   html += `</div>`;
 
@@ -92,6 +94,9 @@ function renderTimeline(stations) {
     risks.forEach((score, ti) => {
       const level    = getRiskLevel(score);
       const isMile   = milestones.has(ti);
+      const isActive = (typeof currentTimeIndex !== 'undefined' && ti === currentTimeIndex);
+      const activeHalo = isActive ? 'box-shadow: 0 0 10px var(--brand-cyan), 0 0 4px #ffffff;' : '';
+
       const handlers = `
         onmouseenter="showTooltip(event,'${s.id}',${ti})"
         onmouseleave="hideTooltip()"
@@ -101,20 +106,21 @@ function renderTimeline(stations) {
         const pulse = level === 'critical' ? ' pulse-ring' : '';
         html += `
           <div style="width:${CELL_W}px;display:flex;justify-content:center;position:relative;z-index:2;">
-            <div class="tl-milestone-dot dot--${level}${pulse}" ${handlers}>
+            <div class="tl-milestone-dot dot--${level}${pulse}" style="${activeHalo}" ${handlers}>
               <span class="dot-inner"></span>
             </div>
           </div>`;
       } else {
         html += `
           <div style="width:${CELL_W}px;display:flex;justify-content:center;position:relative;z-index:2;">
-            <div class="tl-minor-tick" ${handlers}></div>
+            <div class="tl-minor-tick" style="${activeHalo}" ${handlers}></div>
           </div>`;
       }
     });
 
     html += `</div>`;
   });
+
 
   html += `</div></div>`;
   container.innerHTML = html;
